@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#f4f7f9" />
+  <meta name="description" content="通过可交互知识地图、图解执行链路、练习与进度追踪，系统学习 AI 推理、GPU 性能、编译器、机器人 VLA 与世界模型。" />
+  <title>AI 推理技术地图 · GPU / 模型 / 系统</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <script type="module" src="./js/app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到主要内容</a>
+  <header class="topbar">
+    <div class="brand" role="banner">
+      <span class="brand-logo" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><rect x="8" y="8" width="16" height="16" rx="3" stroke="currentColor" stroke-width="2"/><path d="M12 3v5m8-5v5M12 24v5m8-5v5M3 12h5m-5 8h5m16-8h5m-5 8h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="16" r="3" fill="currentColor"/></svg></span>
+      <div class="brand-name"><strong>AI 推理技术地图</strong><span>模型 · 推理 · GPU</span></div>
+    </div>
+    <nav class="top-nav" aria-label="主导航">
+      <button class="tab is-active" id="topMap" type="button" aria-current="page">知识地图</button>
+      <button class="tab" id="topPath" type="button">学习路径</button>
+    </nav>
+    <div class="top-actions">
+      <span class="version">V1.2 · 中文交互版</span>
+      <button class="icon-button" id="themeToggle" type="button" title="切换深浅色" aria-label="切换深浅色">◐</button>
+      <button class="button subtle small" id="exportBtn" type="button">导出进度</button>
+      <button class="button subtle small" id="importBtn" type="button">导入</button>
+      <input id="importFile" type="file" accept="application/json,.json" hidden />
+    </div>
+  </header>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="学习导航">
+      <div class="sidebar-inner">
+        <div class="sidebar-heading"><span class="eyebrow">学习导航</span><strong>从模型一直看到硬件</strong><p>先串起来，再挑值得深入的地方。</p></div>
+        <div class="nav-title">六大知识领域 <span>可并行学习</span></div>
+        <div class="module-nav" id="moduleNav"></div>
+        <div class="sidebar-rule"></div>
+        <div class="nav-title">进度概览</div>
+        <div class="sidebar-progress"><div class="progress-head"><span id="progressNumbers">0 / 0 节已理解</span><span id="progressPercent">0%</span></div><div class="progress-track"><div id="progressBar" class="progress-fill"></div></div><p>保存在当前浏览器，支持 JSON 导出 / 导入。</p></div>
+        <div class="sidebar-note"><span class="note-icon">↗</span><strong>学习原则</strong><p>先定位概念在全链路的位置，再看真实算子、源码与证据。</p></div>
+      </div>
+    </aside>
+    <main id="main" class="workspace">
+      <section id="mapView" class="map-view">
+        <div class="page-top">
+          <div><span class="eyebrow accent-text">先串联，再深入</span><h1>从一次真实推理，串起整套 AI 技术<span class="headline-dot">.</span></h1><p class="intro">不从头重复 vLLM。先选择一个熟悉的实际场景，看它如何经过模型、运行系统、算子和 GPU，再点击薄弱环节深入；机器人 VLA 与世界模型也用同一套方法研究。</p></div>
+          <div class="summary-mark" aria-hidden="true"><span>模型</span><span>↓</span><span>运行</span><span>↓</span><strong>GPU</strong></div>
+        </div>
+        <section class="scenario-section" aria-label="以真实场景串联知识">
+          <div class="section-heading scenario-heading"><span class="section-index">01 / 情境导览</span><h2>先选一个场景，看整条链路如何连接</h2><p>切换场景，再点击任一环节：<strong>它做什么、用了哪些算子、应该测什么</strong>，都能对应到下面的学习课程。</p></div>
+          <div class="scenario-tabs" id="scenarioTabs" role="group" aria-label="选择学习场景"></div>
+          <div class="scenario-box">
+            <div class="scenario-overview" id="scenarioOverview"></div>
+            <div class="scenario-flow" id="scenarioFlow" aria-label="可交互推理流程"></div>
+            <div class="scenario-detail" id="scenarioDetail" aria-live="polite"></div>
+          </div>
+        </section>
+        <div class="map-header"><div class="section-heading"><span class="section-index">02 / 探索</span><h2>可交互知识关系图</h2><p>默认显示最重要的六层关系；需要看具体课程节点时可切换到详细图。点击节点查看它与上下游的联系。</p></div><div class="map-commands"><div class="mode-switch" role="group" aria-label="知识图显示方式"><button id="graphModeOverview" class="active" type="button" aria-pressed="true">简洁图</button><button id="graphModeDetail" type="button" aria-pressed="false">全部课程</button></div><label class="search-field"><span aria-hidden="true">⌕</span><input id="mapSearch" type="search" placeholder="搜索：Attention、VLA、编译器…" aria-label="搜索知识节点" /></label><button class="button outline small" id="resetMap" type="button">重置视图</button></div></div>
+        <div class="atlas-grid">
+          <div class="graph-shell">
+            <div class="graph-toolbar"><span><span class="live-dot"></span>知识网络 <b id="nodeCount">6 个领域</b></span><div class="zoom-actions"><button id="zoomOut" type="button" aria-label="缩小">−</button><span id="zoomDisplay">100%</span><button id="zoomIn" type="button" aria-label="放大">+</button></div></div>
+            <svg id="knowledgeGraph" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 760" role="img" aria-label="可缩放和拖拽的 AI 推理知识地图。可用 Tab 选择节点并按回车展开。"></svg>
+            <div id="mobileNodeList" class="mobile-node-list"></div>
+            <div class="map-legend"><span><i class="legend-mark module"></i>领域节点</span><span><i class="legend-mark lesson"></i>课程节点</span><span><i class="legend-mark line"></i>关联路径</span><span class="drag-tip">拖动空白处平移 · 滚轮缩放</span></div>
+          </div>
+          <aside class="inspector" id="inspector" aria-live="polite"></aside>
+        </div>
+        <details class="glossary-section" id="glossarySection">
+          <summary><span><strong>术语速查</strong> · 看不懂 Runtime、Warp、Flow Matching？点这里查</span><span>展开解释 ＋</span></summary>
+          <div class="glossary-body"><label class="search-field"><span aria-hidden="true">⌕</span><input id="termSearch" type="search" placeholder="搜索中文、GPU、Warp、IR……" aria-label="搜索术语" /></label><div class="glossary-grid" id="glossaryList"></div></div>
+        </details>
+        <section class="quick-route"><div class="section-heading"><span class="section-index">03 / 下一步</span><h2>从熟悉的知识，走向真正的理解</h2><p>已经接触过 vLLM 和 Triton？直接从执行链路与瓶颈归因切入。</p></div><div class="route-cards" id="routeCards"></div></section>
+      </section>
+      <section id="lessonView" class="lesson-view" hidden><div id="lessonContent"></div></section>
+      <section id="pathView" class="path-view" hidden><div id="pathContent"></div></section>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
