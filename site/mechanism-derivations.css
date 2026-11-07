@@ -104,3 +104,5 @@
  .theory-figure{padding:9px;gap:9px}
  .theory-figure-note{font-size:11px}
 }
+
+.theory-attn-shapes{display:grid;grid-template-columns:1fr 1fr;gap:15px}.theory-attn-shapes>div{padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column;gap:10px}.theory-attn-shapes strong{font-size:13px}.theory-attn-shapes small{font-size:11px;color:var(--muted);line-height:1.65}.theory-attn-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;max-width:220px}.theory-attn-grid.decode{grid-template-columns:repeat(5,minmax(0,1fr));max-width:280px}.theory-attn-grid>span{min-height:35px;display:grid;place-items:center;border-radius:6px;font-size:11px}.theory-attn-grid .can-see{background:var(--primary-soft);color:var(--primary);font-weight:700}.theory-attn-grid .masked{background:var(--surface2);color:var(--muted);opacity:.55}@media(max-width:650px){.theory-attn-shapes{grid-template-columns:1fr}}

@@ -225,7 +225,7 @@ tests/                   # 内容结构和链接检查
 
 - 课程**默认的第一步**直接展示具体数据对象和结构图，说明因果机制；不是先跳官方文档。
 - **第三步具体例子**使用浏览器原生 **MathML** 排版数学式，显示每个变量的中文含义、单位和逐步数值推导，无需外部数学 JS 服务。
-- 已深入改造 **11 个**代表性专题：PD 分离、vLLM 调度、Paged KV、GQA/Transformer、编译融合、FlashAttention/Online Softmax、Warp 发射、MoE、VLA、世界模型、GEMM Tiling。
+- 已深入改造 **11 个**代表性专题：PD 分离、vLLM 调度、Paged KV、Transformer Prefill/Decode、编译融合、FlashAttention/Online Softmax、Warp 发射、MoE、VLA、世界模型、GEMM Tiling。
 - 各专题的结构图不共用流程箭头模板，而是展示逻辑/物理 KV 块、Token 预算、数值数组、分块统计、Warp 时间线、专家路由、动作向量和时空 Patch 等对应真实机制的对象。
 - 原有六大领域、25 个深度专题、课程 ID、进度存储/导入导出均保持。**剩余 14 个深度专题仍以导览为主，不可把“有节点”当作“完成源码与机制级教学”。**
 - 公式、图形和示例都是明确的教学抽象，不代表真实 B200/vLLM 的完整数值模型或 Benchmark；详情见 `skills/derivation-teaching/SKILL.md`。
