@@ -18,3 +18,5 @@ Task-specific skills:
 - Web UI audit: `skills/interface-audit/SKILL.md`
 
 9. **Chinese-first and scenario-first.** Every important term must have a short Chinese explanation. Start the user with LLM/VLA/world-model scenarios, then the simplified graph, then detailed nodes. Verify mobile defaults to six modules, not a 16-item wall of cards.
+
+10. **V1.3 deep topics:** Keep original L1 IDs, and build L2–L4 as a separate, linked drill-down atlas. Read `skills/deep-topic-authoring/SKILL.md` before changing `site/js/depth-content.js` or interactive calculators. Depth pages must cite primary docs and label all computed examples as educational, not measured. Preserve existing browser progress export/import compatibility.
