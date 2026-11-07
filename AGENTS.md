@@ -52,3 +52,9 @@ The previous tall reference page is **opt-in**. The normal learning mode must re
 - All personal insight updates remain browser-local unless explicitly exported and reviewed. Never transmit or publish internal-chip information.
 - Existing progress export format includes optional `knowledgeGraph`; legacy progress imports must still work.
 - Validate KV block contents, refcounts/allocations and online-softmax invariants. Browser screenshots for desktop/mobile; do not present these teaching mechanisms as actual production runtimes.
+
+## V2.0 机制与公式质量门槛
+- 改动深度课程时阅读 `skills/derivation-teaching/SKILL.md`。不能只追加概念、术语列表或箭头图。
+- 至少一个可追踪的数据对象/状态图，以及与该对象一致的 **MathML 排版公式、变量释义、数值推导和适用边界**。
+- 已完成推导的课程定义于 `site/js/mechanism-derivations.js`；保留原课程 ID 和进度存储，其他课程不得无审计被标为“完成深入教学”。
+- 禁止通过未核验的数值、产品版本或虚构的真实 GPU 指令来制造深入感。所有有量纲的值需要声明单位与假设。

@@ -15,7 +15,7 @@ test('核心学习为五个短步骤，源码和实测独立为可选进阶',()=
   assert.match(v,/<button type="button" data-f-next>/);
   assert.doesNotMatch(v,/m16-studio/); // full old lesson is opt-in, not upfront
  }
- assert.match(html('pd-disagg',0),/D 端生成的 Token 流/);
+ assert.match(html('pd-disagg',0),/D：Decode 实例/);
  assert.match(html('pd-disagg',1),/data-f-sub="0"/);
  assert.match(html('pd-disagg',4),/浏览和做题不会自动标为/);
  assert.match(html('pd-disagg',5),/可选：官方源码或技术资料/);

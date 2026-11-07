@@ -7,6 +7,7 @@ import {visualFor} from './visual-atlas.js';
 import {depthModules,depthTopics,depthById} from './depth-content.js';
 import {focusScene} from './focus-scenes.js';
 import {studioOptions} from './mechanism-gallery.js';
+import {hasDerivation,renderInContext,renderWorkedDerivation} from './mechanism-derivations.js';
 const esc=(v='')=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export const FOCUS_PAGES=[
  {label:'先看懂',hint:'它是什么'},
@@ -39,14 +40,14 @@ function scopeDiagram(t){const s=stages(t),first=getStage(t,0),last=getStage(t,s
  return `<div class="focus-boundary-graph" aria-label="输入经过当前机制到输出"><div><small>输入是什么</small><strong>${esc(start)}</strong></div><span aria-hidden="true">→</span><div class="focus-boundary-active"><small>本课机制</small><strong>${esc(has(t.id)?featuredMechanisms[t.id].label:t.title)}</strong></div><span aria-hidden="true">→</span><div><small>得到什么</small><strong>${esc(finish)}</strong></div></div>`;
 }
 function overview(t){const doc=has(t.id)?featuredMechanisms[t.id]:null;
- return `<div class="focus-content"><div class="focus-question">先回答：这项技术究竟做什么？</div><p class="focus-definition">${esc(doc?.definition||t.summary)}</p>${scopeDiagram(t)}<div class="focus-short-explainer"><div><small>它处理的对象</small><p>${esc(doc?.boundary||t.stage[0].data)}</p></div><div><small>你要带走的认识</small><p>${esc(t.question)}</p></div></div><p class="focus-caution">先记住机制本身。下一步再看每个环节如何运行，不急着背术语或看外链。</p></div>`;
+ return `<div class="focus-content"><div class="focus-question">先回答：这项技术究竟做什么？</div><p class="focus-definition">${esc(doc?.definition||t.summary)}</p>${hasDerivation(t.id)?renderInContext(t.id):`${scopeDiagram(t)}<div class="focus-short-explainer"><div><small>它处理的对象</small><p>${esc(doc?.boundary||t.stage[0].data)}</p></div><div><small>你要带走的认识</small><p>${esc(t.question)}</p></div></div>`}<p class="focus-caution">先记住机制本身。下一步再看每个环节如何运行，不急着背术语或看外链。</p></div>`;
 }
 function mechanism(t,step=0,variant=0){const s=getStage(t,step),doc=featuredMechanisms[t.id],arr=stages(t);return `<div class="focus-content"><div class="focus-question">${esc(s.title)}：这一步发生了什么？</div><div class="focus-substeps" role="group" aria-label="机制步骤">${arr.map((v,i)=>`<button type="button" data-f-sub="${i}" class="${i===step?'active':''}" aria-pressed="${i===step}">${String(i+1).padStart(2,'0')} ${esc(v.title)}</button>`).join('')}</div>${doc?`${focusScene(t.id,step)}<details id="focusFullDiagram" class="focus-expand focus-full-diagram"><summary>展开完整机制图与另一种视角（可选）</summary><div class="focus-view-toggle">${doc.variants.map((label,i)=>`<button type="button" data-f-variant="${i}" class="${variant===i?'active':''}" aria-pressed="${variant===i}">${esc(label)}</button>`).join('')}</div><div class="focus-figure">${mechanismFigure(t.id,step,variant)}</div></details>`:compactChart(t,step)}<p class="focus-main-explanation">${esc(s.mechanism)}</p><div class="focus-io"><div><small>输入</small><p>${esc(s.data)}</p></div><div><small>输出 / 观测</small><p>${esc(s.metric)}</p></div></div><details class="focus-expand"><summary>为什么这样做？有哪些误区？</summary><p>${esc(s.why||t.insights[0])}</p><p><strong>容易误解：</strong>${esc(s.trap)}</p></details><span class="focus-disclaimer">图为机制教学示意，细节及资源限制取决于具体硬件与软件版本。</span></div>`}
-function example(t){const data=visualFor(t),example=data.sample;
- let specific='';
- if(has(t.id))specific=focusScene(t.id,Math.min(2,stages(t).length-1));
- else specific=compactChart(t,Math.min(1,t.stage.length-1));
- return `<div class="focus-content"><div class="focus-question">换成具体数字或张量，会是什么样？</div><div class="focus-case"><span>一个例子 · ${esc(example[0])}</span><p>${esc(example[1])}</p></div>${specific}<div class="focus-counterexample"><small>别因此得出错误结论</small><p>${esc(example[2])}</p></div><p class="focus-quiet">先对照图，用自己的话解释一次“输入 → 中间状态 → 输出”；不要求背公式。</p></div>`;
+function example(t){
+ if(hasDerivation(t.id))return `<div class="focus-content"><div class="focus-question">这个机制的公式从哪来？用真实数值走一遍。</div>${renderWorkedDerivation(t.id)}<p class="focus-quiet">先对照图与公式，用自己的话从输入推到结果；如果不理解变量，返回本页的变量表，不必跳去外链。</p></div>`;
+ const data=visualFor(t),ex=data.sample;
+ const specific=has(t.id)?focusScene(t.id,Math.min(2,stages(t).length-1)):compactChart(t,Math.min(1,t.stage.length-1));
+ return `<div class="focus-content"><div class="focus-question">换成具体数字或张量，会是什么样？</div><div class="focus-case"><span>一个例子 · ${esc(ex[0])}</span><p>${esc(ex[1])}</p></div>${specific}<div class="focus-counterexample"><small>别因此得出错误结论</small><p>${esc(ex[2])}</p></div><p class="focus-quiet">本专题目前只有导览示例，完整公式推导与执行状态图仍需补足；不应将它视为已完成的深度课程。</p></div>`;
 }
 function checkpoint(t,choice){const q=has(t.id)?featuredMechanisms[t.id].check:{q:t.quiz[0],options:t.quiz[1],correct:t.quiz[2],why:t.quiz[3]};const answered=choice!==null&&choice!==undefined;
  return `<div class="focus-content"><div class="focus-question">如果换个条件，你会怎么判断？</div><h3 class="focus-check-title">${esc(q.q)}</h3><div class="focus-answers">${q.options.map((x,i)=>`<button type="button" data-f-answer="${i}" class="${answered?(i===q.correct?'correct':i===choice?'wrong':''):''}" aria-pressed="${choice===i}"><span>${String.fromCharCode(65+i)}</span>${esc(x)}</button>`).join('')}</div>${answered?`<div class="focus-check-feedback"><strong>${choice===q.correct?'这一步判断正确。':'还需重新理解这个机制。'}</strong><p>${esc(q.why)}</p><button type="button" data-f-retry>重新判断</button></div>`:`<p class="focus-quiet">先自己选择，再看原因。做对一道题不等于已经具备真实工程能力。</p>`}</div>`;
