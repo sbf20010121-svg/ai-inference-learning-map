@@ -31,3 +31,8 @@ description: Maintain mechanism-first, diagram-rich Chinese learning experiences
 4. 在 Chromium 检查所有按钮（步骤/视角/答案）和中文可读性；桌面与 390px 手机视口都要检查整页溢出。
 5. 若现场浏览器导航受限，明确记录这种局限，不能把组件测试说成完整线上回归。
 6. 公开仓库绝不上传公司内网设计、参数、日志、性能数据。
+
+
+## 新图质量门槛（V1.9）
+
+旧版只是“描述某环节为什么有价值”的图，不应当简单复制。新增机制图必须给出变量字典、数值或状态变化、可推理的问题、教学假设与原课程回链。内容写入 `site/js/mechanism-gallery.js`，通过 `tests/mechanism-gallery.test.mjs` 校验。

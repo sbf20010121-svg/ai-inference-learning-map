@@ -1,3 +1,14 @@
+
+## V1.9：用可操作的状态图理解机制 + 就地解释变量
+
+「知识网络」中的 **机制实验** 下拉菜单现在可以选择 10 个场景：原有的 Paged KV 内存映射、Online Softmax，以及新增的 vLLM Token Budget、PD KV 交接、算子融合、Warp 依赖时间线、Warp 合并访存、MoE Top-2 Dispatch、VLA Flow Matching、世界模型时空 Token。
+
+每个新图都有：**变化中的对象/数值 → 当前步骤中文解释 → 变量和单位字典 → 自己预测与反馈 → 教学边界/官方资料**。变量解释直接在页面内，不需要到外链里查；所有图都能跳回对应的深度课程和知识关系节点。移动端采用重新排布或局部滚动，避免将宽图压缩为不可读的小字。
+
+这些图仅是说明机制的可检查教学模型，不是 vLLM 完整调度器、GPU 真实内存事务、B200 周期模型，也不是实际训练好的 VLA/世界模型推理结果。**不要将教学输出解释为真实性能数据。**
+
+更新核心文件：`site/js/mechanism-gallery.js`（纯计算 + 术语 + 渲染）、`site/mechanism-gallery.css`、`tests/mechanism-gallery.test.mjs`。维护时先阅读 `skills/semantic-visualization/SKILL.md`。
+
 # AI 推理技术地图 · V1.4（覆盖审计 + 机制实训）
 
 ## V1.8：真正可生长的知识网络与机制图样板
