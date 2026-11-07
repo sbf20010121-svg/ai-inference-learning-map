@@ -7,11 +7,11 @@ export const coverage=[
 Transformer Block / 张量 Shape|P0|llm-block
 Prefill / Decode 计算形状|P0|llm-block
 GQA/MQA / KV Head 数量|P0|~llm-block
-RoPE / RMSNorm / SwiGLU|P0|
+RoPE / RMSNorm / SwiGLU|P0|fused-norm
 MoE Router / Expert / Dispatch|P0|moe-route
 量化模型与精度误差|P0|~gemm-tiling
-MLA / 压缩 KV 与吸收|P1|
-线性注意力 / SSM / Mamba|P1|
+MLA / 压缩 KV 与吸收|P1|mla-kv
+线性注意力 / SSM / Mamba|P1|linear-state
 长上下文 / Sliding Window / 稀疏注意力|P1|~attention-tiling
 Logits / 温度 / Top-p / Top-k 采样|P1|
 `, 'https://docs.vllm.ai/en/latest/models/supported_models/'),
@@ -32,13 +32,13 @@ Paged KV Cache / Block 分配|P0|kv-cache
 Prefix Caching / Chunked Prefill|P0|vllm-scheduler
 Continuous Batching / 抢占|P0|vllm-scheduler
 PD 分离 / KV Connector / 通信|P0|pd-disagg
-Speculative Decoding / MTP / 接受率|P0|
-模型量化部署 / KV Quant / 装载|P0|
+Speculative Decoding / MTP / 接受率|P0|spec-decode
+模型量化部署 / KV Quant / 装载|P0|quant-pipeline
 TP / PP / EP / DP 并行|P0|multi-gpu
 TTFT / ITL / P99 / SLO / Admission|P0|serving-slo
 在线请求回放与 Benchmark|P0|serving-slo
 数值正确性与输出质量回归|P0|~profiling
-vLLM / SGLang / DeepInfer / TensorRT-LLM|P1|
+vLLM / SGLang / DeepInfer / TensorRT-LLM|P1|frameworks
 长上下文 / Prompt 缓存 / 层级缓存|P1|~kv-cache
 服务弹性扩缩 / 多模型混部|P1|~serving-slo
 异步调度 / 多卡部署拓扑|P1|~multi-gpu
@@ -60,8 +60,8 @@ CUDA Runtime 与 Driver 边界|P0|host-runtime
 GEMM / GEMV / Tile / Grouped GEMM|P0|gemm-tiling
 FlashAttention / Online Softmax|P0|attention-tiling
 Paged Attention / GQA / MLA Kernel|P0|~attention-tiling
-Norm / RoPE / 激活 / Reduction|P0|
-FP8/FP4/INT8 量化和反量化|P0|
+Norm / RoPE / 激活 / Reduction|P0|fused-norm
+FP8/FP4/INT8 量化和反量化|P0|quant-pipeline
 MoE Expert Grouped GEMM 与数据重排|P0|~moe-route
 CUDA Graph / Kernel Fusion / Launch Gap|P0|runtime-graph
 Roofline / 算术强度与访存字节|P0|profiling

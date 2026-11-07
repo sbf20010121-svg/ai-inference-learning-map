@@ -4,7 +4,7 @@ import {coverageHTML,auditState} from '../site/js/coverage-ui.js';
 import {pdFirstToken,pdScenarios,simulateScheduler,simulateAction,fusionTraffic,reasoningHTML,caseIds} from '../site/js/reasoning.js';
 import {depthTopics} from '../site/js/depth-content.js';
 test('覆盖审计跨六大领域，有明确的课程缺口',()=>{assert.equal(validateCoverage(),true);assert.ok(coverageItems.length>=75);assert.equal(coverage.length,7);const x=auditSummary();assert.equal(Object.values(x).reduce((s,v)=>s+v),coverageItems.length);assert.ok(x.missing>0);assert.ok(coverageItems.filter(i=>i.priority==='P0').length>40);});
-test('覆盖界面有可过滤目录与真实知识链接',()=>{auditState.open=true;const h=coverageHTML();assert.match(h,/data-auditfilter="state"/);assert.match(h,/尚缺深度课程/);assert.match(h,/data-audittopic/);auditState.open=false;});
+test('覆盖界面有可过滤目录与真实知识链接',()=>{auditState.open=true;const h=coverageHTML();assert.match(h,/data-auditfilter="state"/);assert.match(h,/尚缺深度课/);assert.match(h,/data-audittopic/);auditState.open=false;});
 test('请求调度模拟显示 Decode/Pefill 的竞争和尾间隔差异',()=>{const a=simulateScheduler('decode'),b=simulateScheduler('prefill');assert.ok(a.meanFirst<b.meanFirst);assert.ok(a.maxGap<b.maxGap);assert.ok(a.rows.some(r=>r.ops.some(x=>x.kind==='P')&&r.ops.some(x=>x.kind==='D')));assert.ok(b.rows.length>a.rows.length);});
 test('PD 分离两种请求负载结论相反',()=>{assert.equal(pdScenarios.busy.best,'split');assert.equal(pdScenarios.quiet.best,'mix');assert.ok(pdFirstToken(pdScenarios.busy.split)<pdFirstToken(pdScenarios.busy.mix));assert.ok(pdFirstToken(pdScenarios.quiet.mix)<pdFirstToken(pdScenarios.quiet.split));});
 test('融合的计算仅比较理论中间访存，不等于加速比',()=>{const t=fusionTraffic();assert.equal(t.eager/2**20,10);assert.equal(t.fused/2**20,2);});

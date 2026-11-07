@@ -12,3 +12,8 @@ description: Maintain the mainstream AI inference/GPU knowledge coverage audit a
 5. 模型优化还要检查输出正确性/任务质量；VLA 不能把推理 Hz 当作控制频率，动作块与异步推理有反应延迟代价。
 6. 内容使用中文，标明关键英文技术词、数据流与控制流、先修课程、公开一手资料；更新 `docs/roadmap.md` 和必要的课程关联。
 7. 验证方法：`npm test`，检查各状态统计、L1→深度课、情境按钮、结果反馈、深浅色和手机滚动。若浏览器自动化不可用，如实记录，不声明“实测通过”。
+
+## Review after adding new material
+- Update coverage status only after a substantive independent mechanism lesson exists; partial mention remains `~topic-id`. Reporting summary totals is required in `docs/roadmap.md`.
+- Show residual gaps rather than suppressing them for a high coverage rate. Distinguish having an L2–L4 *course scaffold* from verifying fixed-version source, executing hardware benchmarks, and developing engineering proficiency.
+- User's real interests include Kernel execution, Triton/IR, vLLM serving/PD, robotics VLA, world models and public B200 microarchitecture. Maintain balanced pathways rather than optimizing merely for higher counts.

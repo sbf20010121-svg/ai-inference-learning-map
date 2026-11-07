@@ -8,7 +8,7 @@ import {modules,lessons} from '../site/js/content.js';
 test('Depth map preserves the original six module IDs and lesson references',()=>{
  assert.deepEqual(depthModules.map(m=>m.id),modules.map(m=>m.id));
  assert.equal(validateDepthData(),true);
- assert.equal(depthTopics.length,19);
+ assert.ok(depthTopics.length>=25);
  const lessonIds=new Set(lessons.map(l=>l.id));
  assert.ok(depthTopics.every(t=>lessonIds.has(t.parent)));
  assert.ok(depthModules.every(m=>depthTopics.filter(t=>t.module===m.id).length>=2));

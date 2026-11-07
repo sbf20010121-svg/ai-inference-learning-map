@@ -35,3 +35,9 @@ description: Add or extend L2-L4 Chinese interactive AI inference deep-dive less
 - Verify public claims against official CUDA/PyTorch/vLLM/NVIDIA/HuggingFace documentation at the time of change. Avoid unversioned path claims without caveat.
 - Run `npm test`, exercise L1→L2 navigation, L2 stepper, L3 links, L4 calculator, dark mode, mobile overflow, progress export/import.
 - Maintain `AGENTS.md`, this skill, README and the roadmap whenever expanding depth coverage or schema.
+
+## V1.4 expansion pattern
+- For a new subject, first find its entry in `site/js/coverage.js`, then choose whether it deserves its own L2-L4 topic (`site/js/depth-extra.js`) or an explicit partial-coverage label (`~topic-id`). Do not label an unbuilt lesson as covered.
+- Every `depth-extra.js` topic must include `parent`, `module`, `stage`, `insights`, `traces`, `experiment`, `quiz`, `refs`, `related`; links and related IDs must be valid. Include `depth-extra.js` in the test schema and preserve legacy IDs.
+- An L3 documentation pointer is only an *investigation entry point*, not a claim to have verified current code paths/Kernel mappings. Pinned-version source paths, data shapes and real execution evidence must be added separately before claiming source-level completeness.
+- For interactive work, prefer `site/js/reasoning.js` replayable evidence cases (decision → observable process → counterfactual → controlled experiment) over numerical sliders. Label all constructed traces and time units as teaching assumptions.
