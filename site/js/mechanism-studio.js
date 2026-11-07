@@ -177,3 +177,12 @@ export function handleMechanismStudioClick(target,root,topic){const el=target?.c
  if(Math.abs(window.scrollY-oldScroll)>20)window.scrollTo({top:oldScroll,behavior:'instant'});
  return true;
 }
+
+/** V1.7: return just the mechanism figure for the compact reader, without the long surrounding lesson. */
+export function mechanismFigure(id,step=0,variant=0){
+ const data=featuredMechanisms[id];
+ if(!data)return '';
+ const s=Math.max(0,Math.min(data.steps.length-1,Number(step)||0));
+ const v=Math.max(0,Math.min(1,Number(variant)||0));
+ return `<div class="m16-diagram m16-compact-figure" aria-label="${esc(data.label)} · ${esc(data.steps[s].title)}">${diagrams[id](s,v)}</div>`;
+}

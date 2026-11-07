@@ -6,7 +6,8 @@ import {depthModules,depthTopics,depthPaths,depthById,validateDepthData} from '.
 import {coverageHTML,auditState} from './coverage-ui.js';
 import {reasoningHTML,handleReasoning} from './reasoning.js';
 import {visualHTML,inlineImplementation,handleVisualClick,validateVisualKnowledge} from './visual-atlas.js';
-import {handleMechanismStudioClick,featuredMechanismIds} from './mechanism-studio.js';
+import {handleMechanismStudioClick,featuredMechanismIds,featuredMechanisms} from './mechanism-studio.js';
+import {renderFocusReader,normalizeReaderRecord} from './focus-reader.js';
 validateDepthData();
 validateVisualKnowledge(depthTopics);
 const $=(selector,root=document)=>root.querySelector(selector);
@@ -14,10 +15,14 @@ const $$=(selector,root=document)=>[...root.querySelectorAll(selector)];
 const esc=(v='')=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const MODCOLORS={model:'#8354b1',engine:'#287fa0',compiler:'#b47731',kernel:'#138b81',systems:'#5c769b',microarch:'#c37757'};
 const DEPTH_STORE='ai-inference-depth-progress-v1';
+const RESUME_STORE='ai-inference-last-topic-v1';
+const MODE_STORE='ai-inference-reader-mode-v1';
 const LEVELS=['L2','L3','L4'];
-const state={topic:'pd-disagg',level:'L2',stage:0,choice:null,query:'',route:'deploy',progress:load(),controlCache:{}};
+const state={topic:'pd-disagg',level:'L2',stage:0,choice:null,query:'',route:'deploy',progress:load(),controlCache:{},focusMode:loadMode(),readerStep:0,substep:0,variant:0,sourceIndex:0,focusAnswer:null};
+function loadMode(){try{return localStorage.getItem(MODE_STORE)==='reference'?'reference':'focus'}catch{return 'focus'}}
+export function resumeDepthHash(){try{const id=localStorage.getItem(RESUME_STORE);return 'depth/'+(id&&depthById.has(id)?id:'pd-disagg')+'/L2'}catch{return 'depth/pd-disagg/L2'}}
 function load(){try{return cleanProgress(JSON.parse(localStorage.getItem(DEPTH_STORE)||'{}'))}catch{return {}}}
-function cleanProgress(obj){const result={};if(!obj||typeof obj!=='object'||Array.isArray(obj))return result;for(const t of depthTopics){const v=obj[t.id];if(!v||typeof v!=='object')continue;result[t.id]={status:['new','learning','known','review'].includes(v.status)?v.status:'new',note:typeof v.note==='string'?v.note.slice(0,2500):'',completed:LEVELS.filter(l=>Array.isArray(v.completed)&&v.completed.includes(l))}}return result}
+function cleanProgress(obj){const result={};if(!obj||typeof obj!=='object'||Array.isArray(obj))return result;for(const t of depthTopics){const v=obj[t.id];if(!v||typeof v!=='object')continue;result[t.id]={status:['new','learning','known','review'].includes(v.status)?v.status:'new',note:typeof v.note==='string'?v.note.slice(0,2500):'',completed:LEVELS.filter(l=>Array.isArray(v.completed)&&v.completed.includes(l)),...normalizeReaderRecord(v)}}return result}
 function save(){try{localStorage.setItem(DEPTH_STORE,JSON.stringify(state.progress))}catch{}}
 const topicStatus=id=>state.progress[id]?.status||'new';
 const topicStatusLabel=id=>({new:'未开始',learning:'学习中',known:'已理解',review:'待验证'})[topicStatus(id)];
@@ -27,12 +32,37 @@ export function exportDepthProgress(){return cleanProgress(state.progress)}
 export function importDepthProgress(raw){state.progress=cleanProgress(raw);save();if($('#depthContent'))renderDepthAtlas();return Object.keys(state.progress).length}
 export function goDepth(id='pd-disagg',level='L2'){
  if(!depthById.has(id))id='pd-disagg';if(!LEVELS.includes(level))level='L2';
- state.topic=id;state.level=level;state.stage=0;state.choice=null;state.query='';
+ state.topic=id;state.level=level;state.stage=0;state.choice=null;state.query='';state.substep=0;state.variant=0;state.sourceIndex=0;state.focusAnswer=null;
  const match=depthPaths.find(p=>p.ids.includes(id));if(match&&!(depthPaths.find(p=>p.id===state.route)?.ids.includes(id)))state.route=match.id;
- const rec=state.progress[id]||{status:'new',completed:[],note:''};if(rec.status==='new'){state.progress[id]={...rec,status:'learning'};save()}
+ const rec=state.progress[id]||{status:'new',completed:[],note:'',readerStep:0,seenSteps:[]};
+ state.readerStep=level==='L3'?5:level==='L4'?6:rec.readerStep??0;state.substep=state.readerStep===1?(rec.readerSubstep??0):0;
+ if(rec.status==='new')state.progress[id]={...rec,status:'learning'};
+ markCurrentSeen();try{localStorage.setItem(RESUME_STORE,id)}catch{}
  renderDepthAtlas();
 }
 const toHash=(id,level='L2')=>{location.hash='depth/'+id+'/'+level;};
+function recFor(id=state.topic){return state.progress[id]||{status:'learning',completed:[],note:'',readerStep:0,seenSteps:[]}}
+function markCurrentSeen(){const rec=recFor();rec.readerStep=state.readerStep;rec.readerSubstep=state.substep;
+ if(state.readerStep===1)rec.seenSubsteps=[...new Set([...(rec.seenSubsteps||[]),state.substep])].sort((a,b)=>a-b);
+ rec.seenSteps=[...new Set([...(rec.seenSteps||[]),state.readerStep])].sort((a,b)=>a-b);state.progress[state.topic]=rec;save()}
+function showFocus(){renderDepthAtlas();const box=$('#focusReader');if(box){const top=box.getBoundingClientRect().top+window.scrollY-86;if(window.scrollY>top+140 || window.scrollY<top-140)window.scrollTo({top:Math.max(0,top),behavior:'instant'})}}
+function setFocusPage(n){state.readerStep=Math.max(0,Math.min(6,n));state.level=state.readerStep===5?'L3':state.readerStep===6?'L4':'L2';state.focusAnswer=null;state.substep=0;state.sourceIndex=0;markCurrentSeen();history.replaceState(null,'','#depth/'+state.topic+'/'+state.level);showFocus()}
+function handleFocusClick(el){
+ if(el.hasAttribute('data-f-reference')){state.focusMode='reference';try{localStorage.setItem(MODE_STORE,'reference')}catch{}renderDepthAtlas();window.scrollTo({top:0,behavior:'instant'});return true}
+ if(el.hasAttribute('data-f-focus')){state.focusMode='focus';try{localStorage.setItem(MODE_STORE,'focus')}catch{}showFocus();return true}
+ if(state.focusMode!=='focus')return false;
+ if(el.hasAttribute('data-f-page')){setFocusPage(Number(el.dataset.fPage));return true}
+ if(el.hasAttribute('data-f-next')){if(state.readerStep===1&&state.substep<(featuredMechanisms[state.topic]?.steps.length||current().stage.length)-1){state.substep++;markCurrentSeen();showFocus()}else{setFocusPage(state.readerStep===6?0:state.readerStep+1)}return true}
+ if(el.hasAttribute('data-f-prev')){if(state.readerStep===1&&state.substep>0){state.substep--;markCurrentSeen();showFocus()}else if(state.readerStep>0){setFocusPage(state.readerStep-1)}return true}
+ if(el.hasAttribute('data-f-sub')){state.substep=Number(el.dataset.fSub);markCurrentSeen();showFocus();return true}
+ if(el.hasAttribute('data-f-variant')){state.variant=Number(el.dataset.fVariant);showFocus();const details=$('#focusFullDiagram');if(details)details.open=true;return true}
+ if(el.hasAttribute('data-f-answer')){state.focusAnswer=Number(el.dataset.fAnswer);showFocus();return true}
+ if(el.hasAttribute('data-f-retry')){state.focusAnswer=null;showFocus();return true}
+ if(el.hasAttribute('data-f-source')){state.sourceIndex=Number(el.dataset.fSource);showFocus();return true}
+ if(el.hasAttribute('data-f-mark')){const rec=recFor();rec.status=el.dataset.fMark;state.progress[state.topic]=rec;save();showFocus();return true}
+ return false;
+}
+
 
 const searchMatches=t=>!state.query||[t.title,t.summary,t.question,t.module,t.id,moduleName(t.module)].join(' ').toLowerCase().includes(state.query.toLowerCase());
 function pathBar(){return `<div class="deep-paths" role="group" aria-label="选择跨模块学习路径">${depthPaths.map(route=>`<button type="button" class="deep-route ${route.id===state.route?'active':''}" data-dpath="${route.id}" aria-pressed="${route.id===state.route}"><strong>${esc(route.name)}</strong><span>${esc(route.subtitle)}</span><small>${route.ids.length} 站 · 点击切换</small></button>`).join('')}</div>`}
@@ -99,12 +129,13 @@ const spotlight=[
 ];
 function mechanismIndexHTML(){return `<section class="m16-home-index"><span class="eyebrow accent-text">V1.6 / 核心机制图解</span><h2>先学明白它怎么运行，再看性能收益</h2><p>五组分步图和具体执行例子，点击直接在网页里学习；不需要先去读外部文章。</p><div class="m16-home-list">${spotlight.map(([id,name,desc],i)=>`<button type="button" data-dtopic="${id}"><span>${String(i+1).padStart(2,'0')} / 机制图解</span><strong>${esc(name)}</strong><small>${esc(desc)}</small></button>`).join('')}</div></section>`}
 
-export function renderDepthAtlas(){const root=$('#depthContent');if(!root)return;const t=current();root.innerHTML=`<div class="deep-intro"><span class="eyebrow accent-text">V1.6 · 机制解剖与深读</span><h1>不止知道“是什么”，还要知道“为什么这样运行”<span class="headline-dot">.</span></h1><p>六大模块保持不变。先在本页看懂<strong>系统位置、架构图、数据流、设计权衡与张量例子</strong>，再深入源码和实训。你已经学过的概念可以跳过；微架构与机器人模型继续并行。</p><div class="deep-hero-numbers"><span><b>6</b> 个领域</span><span><b>${depthTopics.length}</b> 个深度专题</span><span><b>${depthPaths.length}</b> 条跨领域路径</span><span>全部中文 · 不上传内网信息</span></div></div>${mechanismIndexHTML()}${pathBar()}${routeMini()}<div class="deep-layout">${tree()}${contentHTML(t)}</div>${coverageHTML()}`;}
+export function renderDepthAtlas(){const root=$('#depthContent');if(!root)return;const t=current();if(state.focusMode==='focus'){root.innerHTML=renderFocusReader(t,recFor(),{readerStep:state.readerStep,substep:state.substep,variant:state.variant,sourceIndex:state.sourceIndex,answer:state.focusAnswer,records:state.progress});return}root.innerHTML=`<button type="button" class="focus-return-button" data-f-focus>← 返回专注学习（推荐）</button><div class="deep-intro"><span class="eyebrow accent-text">V1.6 · 机制解剖与深读</span><h1>不止知道“是什么”，还要知道“为什么这样运行”<span class="headline-dot">.</span></h1><p>六大模块保持不变。先在本页看懂<strong>系统位置、架构图、数据流、设计权衡与张量例子</strong>，再深入源码和实训。你已经学过的概念可以跳过；微架构与机器人模型继续并行。</p><div class="deep-hero-numbers"><span><b>6</b> 个领域</span><span><b>${depthTopics.length}</b> 个深度专题</span><span><b>${depthPaths.length}</b> 条跨领域路径</span><span>全部中文 · 不上传内网信息</span></div></div>${mechanismIndexHTML()}${pathBar()}${routeMini()}<div class="deep-layout">${tree()}${contentHTML(t)}</div>${coverageHTML()}`;}
 export function bindDepthAtlas(){const root=$('#depthView');if(!root)return;
  root.addEventListener('click',async e=>{
   if(handleMechanismStudioClick(e.target,root,current()))return;
   if(handleVisualClick(e.target,current(),root))return;
   const el=e.target.closest('button');if(!el)return;
+  if(handleFocusClick(el))return;
   if(el.hasAttribute('data-audittoggle')){auditState.open=!auditState.open;$('#knowledgeAudit').outerHTML=coverageHTML();return}
   if(el.hasAttribute('data-audittopic')){toHash(el.dataset.audittopic,'L2');return}
   if(handleReasoning(el,state.topic))return;
@@ -124,6 +155,7 @@ export function bindDepthAtlas(){const root=$('#depthView');if(!root)return;
  root.addEventListener('input',e=>{
   if(e.target.id==='deepSearch'){state.query=e.target.value;const old=e.target.selectionStart;const container=$('.deep-catalog',root);container.outerHTML=tree();const input=$('#deepSearch');input.focus();input.setSelectionRange(old,old);return}
   if(e.target.dataset.dslider){const v=readVals(current());v[e.target.dataset.dslider]=Number(e.target.value);refreshLab();return}
+  if(e.target.id==='focusNote'){const record=recFor();record.note=e.target.value.slice(0,2500);state.progress[state.topic]=record;save();return}
   if(e.target.id==='deepNote'){const record=state.progress[state.topic]||{status:'learning',completed:[],note:''};record.note=e.target.value.slice(0,2500);state.progress[state.topic]=record;save();return}
  });
 }

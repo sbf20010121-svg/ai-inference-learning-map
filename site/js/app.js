@@ -1,7 +1,7 @@
 import {modules,lessons,edges,allNodes,nodeMap} from './content.js';
 import {scenarios,moduleRoles,reasonBetween,glossary} from './journeys.js';
 import {depthTopics} from './depth-content.js';
-import {bindDepthAtlas,goDepth,exportDepthProgress,importDepthProgress} from './depth.js';
+import {bindDepthAtlas,goDepth,exportDepthProgress,importDepthProgress,resumeDepthHash} from './depth.js';
 
 const $ = (s, root=document) => root.querySelector(s);
 const $$ = (s, root=document) => [...root.querySelectorAll(s)];
@@ -118,7 +118,7 @@ $('#termSearch').addEventListener('input',e=>renderGlossary(e.target.value));
 $('#mapSearch').addEventListener('input',e=>{state.search=e.target.value;if(state.search.trim())setGraphMode('detail');else renderGraph();renderInspector()});
 $('#graphModeOverview').addEventListener('click',()=>setGraphMode('overview'));
 $('#graphModeDetail').addEventListener('click',()=>setGraphMode('detail'));
-$('#topMap').addEventListener('click',()=>navHash('map'));$('#topDepth').addEventListener('click',()=>navHash('depth/pd-disagg/L2'));$('#topPath').addEventListener('click',()=>navHash('path'));$('#goDepthHome').addEventListener('click',()=>navHash('depth/pd-disagg/L2'));
+$('#topMap').addEventListener('click',()=>navHash('map'));$('#topDepth').addEventListener('click',()=>navHash(resumeDepthHash()));$('#topPath').addEventListener('click',()=>navHash('path'));$('#goDepthHome').addEventListener('click',()=>navHash(resumeDepthHash()));
 $('#themeToggle').addEventListener('click',()=>setTheme(state.theme==='light'?'dark':'light'));
 $('#exportBtn').addEventListener('click',exportProgress);$('#importBtn').addEventListener('click',()=>$('#importFile').click());$('#importFile').addEventListener('change',async e=>{await importProgress(e.target.files?.[0]);e.target.value=''});
 
