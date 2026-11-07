@@ -1,5 +1,17 @@
 # AI 推理技术地图 · V1.4（覆盖审计 + 机制实训）
 
+## V1.8：真正可生长的知识网络与机制图样板
+
+- 新入口 **「知识网络」**：以已有 25 个稳定专题为基础，建立明确类型、连接原因和方向的知识关联（避免静态全图毛线团）。
+- 可以将自己的新理解作为节点连接到旧知识，记录来源、验证状态，并允许修改/删除。个人记录保存在浏览器本地，纳入原进度导出/导入；**不会自动同步 GitHub**。
+- **Paged KV Cache** 可交互内存映射图：逻辑块 → Block Table → 非连续物理块；重放新请求、共享前缀、追加 Token、释放和重用。
+- **在线 Softmax** 数值图：逐 Tile 更新 m、l、a，核对最终结果与标准 Softmax 一致。
+- 配套原创 Skill、图形来源、技术不变量测试和桌面/移动端浏览器检查。
+- 质量范围：目前是 2 个具体机制的样板，并非全部 25 节都达到同等质量；不伪称有真实 GPU Benchmark。
+
+详见 [`docs/diagram-design-standards.md`](docs/diagram-design-standards.md)、[`docs/knowledge-graph-contribution.md`](docs/knowledge-graph-contribution.md)。
+
+
 一张能够探索、点击与学习的中文 AI 推理技术知识地图：**模型 → 推理系统 → 编译 / Runtime → GPU Kernel → 微架构**，同时保留 **OS / 分布式基础**，以 **机器人 VLA / 世界模型**作为重点拓展领域。
 
 > 目标是“先串起知识，再选择方向深入”，不是从零把 vLLM 和 CUDA 基础重新学一遍。

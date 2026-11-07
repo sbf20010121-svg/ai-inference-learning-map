@@ -44,3 +44,11 @@ Task-specific skills:
 ## V1.7 Reader UX precedence
 
 The previous tall reference page is **opt-in**. The normal learning mode must remain focused: one core question per view, stage-specific small mechanism figure, clear forward/back controls, and reliable “viewed vs understood” progress. Read `skills/focused-learning-ux/SKILL.md` before any UX change. Preserve all old topic IDs and existing progress. Never restore the stack of overview banner + coverage list + route cards + catalogue ahead of the lesson.
+
+## V1.8 Semantic graph and meaningful visual diagrams
+
+- Read `skills/semantic-visualization/SKILL.md`, `docs/diagram-design-standards.md` and `docs/knowledge-graph-contribution.md` before adding diagrams or new graph edges. Avoid generic boxes with arrows.
+- Six original modules and all curated topic IDs are immutable. The semantic graph adds typed, explained relationships and user insight nodes without rewriting official course data.
+- All personal insight updates remain browser-local unless explicitly exported and reviewed. Never transmit or publish internal-chip information.
+- Existing progress export format includes optional `knowledgeGraph`; legacy progress imports must still work.
+- Validate KV block contents, refcounts/allocations and online-softmax invariants. Browser screenshots for desktop/mobile; do not present these teaching mechanisms as actual production runtimes.

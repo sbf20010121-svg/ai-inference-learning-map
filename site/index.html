@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="./audit.css" />
   <link rel="stylesheet" href="./reasoning.css" />
   <link rel="stylesheet" href="./focus.css" />
+  <link rel="stylesheet" href="./knowledge-network.css" />
   <script type="module" src="./js/app.js"></script>
 </head>
 <body>
@@ -25,10 +26,11 @@
     <nav class="top-nav" aria-label="主导航">
       <button class="tab is-active" id="topMap" type="button" aria-current="page">知识地图</button>
       <button class="tab" id="topDepth" type="button">深度图谱</button>
+      <button class="tab" id="topNetwork" type="button">知识网络</button>
       <button class="tab" id="topPath" type="button">学习路径</button>
     </nav>
     <div class="top-actions">
-      <span class="version">V1.7 · 专注学习</span>
+      <span class="version">V1.8 · 可探索知识网络</span>
       <button class="icon-button" id="themeToggle" type="button" title="切换深浅色" aria-label="切换深浅色">◐</button>
       <button class="button subtle small" id="exportBtn" type="button">导出进度</button>
       <button class="button subtle small" id="importBtn" type="button">导入</button>
@@ -78,6 +80,7 @@
         </details>
         <section class="quick-route"><div class="section-heading"><span class="section-index">03 / 下一步</span><h2>从熟悉的知识，走向真正的理解</h2><p>已经接触过 vLLM 和 Triton？直接从执行链路与瓶颈归因切入。</p></div><div class="route-cards" id="routeCards"></div></section>
       </section>
+      <section id="knowledgeNetworkView" class="knowledge-network-view" hidden><div id="knowledgeNetworkContent"></div></section>
       <section id="depthView" class="depth-view" hidden><div id="depthContent"></div></section>
       <section id="lessonView" class="lesson-view" hidden><div id="lessonContent"></div></section>
       <section id="pathView" class="path-view" hidden><div id="pathContent"></div></section>
