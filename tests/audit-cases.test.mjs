@@ -1,0 +1,12 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
+import {coverageItems,coverage,statusOf,auditSummary,validateCoverage} from '../site/js/coverage.js';
+import {coverageHTML,auditState} from '../site/js/coverage-ui.js';
+import {pdFirstToken,pdScenarios,simulateScheduler,simulateAction,fusionTraffic,reasoningHTML,caseIds} from '../site/js/reasoning.js';
+import {depthTopics} from '../site/js/depth-content.js';
+test('覆盖审计跨六大领域，有明确的课程缺口',()=>{assert.equal(validateCoverage(),true);assert.ok(coverageItems.length>=75);assert.equal(coverage.length,7);const x=auditSummary();assert.equal(Object.values(x).reduce((s,v)=>s+v),coverageItems.length);assert.ok(x.missing>0);assert.ok(coverageItems.filter(i=>i.priority==='P0').length>40);});
+test('覆盖界面有可过滤目录与真实知识链接',()=>{auditState.open=true;const h=coverageHTML();assert.match(h,/data-auditfilter="state"/);assert.match(h,/尚缺深度课程/);assert.match(h,/data-audittopic/);auditState.open=false;});
+test('请求调度模拟显示 Decode/Pefill 的竞争和尾间隔差异',()=>{const a=simulateScheduler('decode'),b=simulateScheduler('prefill');assert.ok(a.meanFirst<b.meanFirst);assert.ok(a.maxGap<b.maxGap);assert.ok(a.rows.some(r=>r.ops.some(x=>x.kind==='P')&&r.ops.some(x=>x.kind==='D')));assert.ok(b.rows.length>a.rows.length);});
+test('PD 分离两种请求负载结论相反',()=>{assert.equal(pdScenarios.busy.best,'split');assert.equal(pdScenarios.quiet.best,'mix');assert.ok(pdFirstToken(pdScenarios.busy.split)<pdFirstToken(pdScenarios.busy.mix));assert.ok(pdFirstToken(pdScenarios.quiet.mix)<pdFirstToken(pdScenarios.quiet.split));});
+test('融合的计算仅比较理论中间访存，不等于加速比',()=>{const t=fusionTraffic();assert.equal(t.eager/2**20,10);assert.equal(t.fused/2**20,2);});
+test('VLA 异步推理可减少空白但不能消除比动作块更慢的推理',()=>{const sync=simulateAction(7,4,false),asyn=simulateAction(7,4,true);assert.ok(asyn.wait<sync.wait);assert.equal(asyn.wait,13);assert.equal(simulateAction(3,6,true).wait,3);});
+test('案例都挂在已有课程，前端资源存在且只使用静态模块',()=>{const ids=new Set(depthTopics.map(x=>x.id));for(const id of caseIds){assert.ok(ids.has(id));assert.ok(reasoningHTML(id).includes('data-case'))}const html=readFileSync(new URL('../site/index.html',import.meta.url),'utf8');assert.match(html,/audit.css/);assert.match(html,/reasoning.css/);const app=readFileSync(new URL('../site/js/depth.js',import.meta.url),'utf8');assert.match(app,/handleReasoning/);});
