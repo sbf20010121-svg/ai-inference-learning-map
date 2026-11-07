@@ -41,3 +41,13 @@ description: Add or extend L2-L4 Chinese interactive AI inference deep-dive less
 - Every `depth-extra.js` topic must include `parent`, `module`, `stage`, `insights`, `traces`, `experiment`, `quiz`, `refs`, `related`; links and related IDs must be valid. Include `depth-extra.js` in the test schema and preserve legacy IDs.
 - An L3 documentation pointer is only an *investigation entry point*, not a claim to have verified current code paths/Kernel mappings. Pinned-version source paths, data shapes and real execution evidence must be added separately before claiming source-level completeness.
 - For interactive work, prefer `site/js/reasoning.js` replayable evidence cases (decision → observable process → counterfactual → controlled experiment) over numerical sliders. Label all constructed traces and time units as teaching assumptions.
+
+
+## V1.5 必须在页面内完成教学（不靠外链）
+
+- 先审阅 `site/js/visual-knowledge.js` 中该专题的核心结论、5 步数据链、具体 Shape/运行例子、两种方案的收益/代价、三条记忆点。
+- 若主题有不同的控制与数据路径，在 `site/js/visual-lanes.js` 编写真实且可解释的双泳道图；不要将 Shared Memory 表述为自动缓存链路，也不要将 PD 分离表述为按层切分模型。
+- 图是为了揭示机制与数据依赖，不是为了装饰。核对图中每条箭头的语义以及例子涉及的假设。
+- L3 使用 `inlineImplementation` 将模块职责、输入输出与性能观察在页面里讲完；源码/官方链接作为可展开的核验材料，不可取代讲解。
+- L4 不得把数学玩具模型的数值称为 GPU 实测。保留受控实验和数值正确性验证。
+- 每次运行 `npm test` 并用桌面/移动端验证：架构图节点可点、能键盘激活、整页不横向溢出、改变专题不丢失旧进度。

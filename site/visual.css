@@ -1,0 +1,95 @@
+/* V1.5 中文图解教学层：优先信息清晰、交互真实有意义、移动端滚动可读。 */
+.viz-lesson{margin:22px 0 26px;display:grid;gap:18px;border:1px solid var(--border);background:var(--surface);border-radius:18px;padding:clamp(15px,2.2vw,25px);box-shadow:var(--shadow)}
+.viz-head{padding:22px 24px;background:var(--primary-soft);border-radius:13px;border-left:4px solid var(--primary)}
+.viz-eyebrow,.viz-location-head span,.viz-recall-heading span{display:block;font-size:11px;font-weight:800;letter-spacing:.06em;color:var(--primary)}
+.viz-head h3{font-size:20px;margin:6px 0 9px;color:var(--ink)}
+.viz-head p{font-size:15px;color:var(--ink);font-weight:550;line-height:1.8;max-width:100ch}
+.viz-location-head{display:flex;gap:8px 15px;align-items:baseline;flex-wrap:wrap;margin-top:5px}
+.viz-location-head strong{font-size:16px}
+.viz-context{border:1px solid var(--border);background:var(--surface3);border-radius:13px;padding:16px;overflow:auto}
+.viz-context-row{display:flex;align-items:center;gap:6px;min-width:600px}
+.viz-context-cell{flex:1;text-align:center;padding:13px 4px;border:1px solid var(--border);border-radius:9px;background:var(--surface);display:flex;align-items:center;justify-content:center;gap:5px;min-width:93px;font-size:12px;white-space:nowrap}
+.viz-context-cell span{color:var(--muted);font-size:10px}
+.viz-context-cell.is-here{border:2px solid var(--accent);background:var(--primary-soft);font-weight:800;color:var(--ink)}
+.viz-context-arrow{color:var(--muted);font-size:16px}
+.viz-context-support{margin:12px auto 0;padding:10px 15px;border:1px dashed var(--border);color:var(--muted);font-size:12px;text-align:center;border-radius:9px}
+.viz-context-support.is-here{border:2px solid var(--accent);color:var(--ink);background:var(--primary-soft)}
+.viz-flow-scroll{background:var(--surface3);border:1px solid var(--border);border-radius:13px;overflow-x:auto;overscroll-behavior-x:contain}
+.viz-svg{min-width:840px;display:block;width:100%;height:auto;color:var(--primary);font-family:inherit}
+.viz-svg-caption{font-size:16px;fill:var(--muted);font-weight:600}
+.viz-arrow{fill:none;stroke:var(--primary);stroke-width:2;opacity:.65}
+.viz-svg-node{outline:none;cursor:pointer}
+.viz-svg-node rect:first-child{fill:var(--surface);stroke:var(--border);stroke-width:2;transition:fill .18s,stroke .18s}
+.viz-svg-node .viz-accent{fill:var(--primary);opacity:.65}
+.viz-svg-node:hover rect:first-child,.viz-svg-node:focus-visible rect:first-child,.viz-svg-node.is-selected rect:first-child{fill:var(--primary-soft);stroke:var(--primary);stroke-width:3}
+.viz-svg-node .viz-number{font-size:14px;font-weight:800;fill:var(--muted);text-anchor:middle}
+.viz-svg-node .viz-node-label{font-size:17px;font-weight:750;fill:var(--ink)}
+.viz-node-detail{border:1px solid var(--border);border-left:4px solid var(--primary);background:var(--surface3);border-radius:10px;padding:17px 20px;min-height:110px}
+.viz-detail-step{color:var(--primary);font:800 11px ui-monospace,monospace;letter-spacing:.07em}
+.viz-node-detail h4{font-size:17px;margin:5px 0 7px}
+.viz-node-detail p{font-size:14px;line-height:1.85;max-width:95ch}
+.viz-example{display:grid;grid-template-columns:1.35fr 1fr;gap:12px}
+.viz-example>div{padding:17px 20px;background:var(--surface3);border:1px solid var(--border);border-radius:12px}
+.viz-example strong,.viz-comparison h4{font-size:15px}
+.viz-example p{font-size:13.5px;line-height:1.75;margin-top:8px}
+.viz-example .viz-boundary{background:rgba(190,130,52,.075)}
+.viz-boundary strong{color:var(--ink)}
+.viz-compare-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.viz-comparison{background:var(--surface3);border:1px solid var(--border);padding:18px;border-radius:12px;display:grid;gap:12px}
+.viz-comparison:first-child{border-top:4px solid #4f87ae}.viz-comparison:last-child{border-top:4px solid #b0874f}
+.viz-comparison-number{font:800 11px ui-monospace,monospace;color:var(--muted)}
+.viz-comparison h4{font-size:17px;margin:0}
+.viz-comparison div{border-top:1px solid var(--border);padding-top:9px}
+.viz-comparison small{display:block;color:var(--muted);font-size:11px;font-weight:800;margin-bottom:4px}
+.viz-comparison p{font-size:13px;line-height:1.75}
+.viz-recall{padding:19px 22px;background:var(--surface3);border:1px solid var(--border);border-radius:12px}
+.viz-recall h3{font-size:17px;margin-top:4px}
+.viz-recall ol{margin:12px 0 6px;padding-left:24px;display:grid;gap:8px;font-size:14px;line-height:1.7}
+.viz-recall li::marker{font-weight:800;color:var(--primary)}
+.viz-recall details{margin-top:14px;border-top:1px solid var(--border);padding-top:12px}
+.viz-recall summary{cursor:pointer;font-weight:700;font-size:13px}
+.viz-recall details p{margin-top:10px;font-size:13px;line-height:1.8}
+.viz-footnote{color:var(--muted);font-size:11px}
+.viz-inline-impl{display:grid;gap:15px;margin-bottom:20px}
+.viz-inline-intro{background:var(--primary-soft);border-radius:12px;padding:20px}
+.viz-inline-intro span{font-size:11px;font-weight:800;color:var(--primary)}
+.viz-inline-intro h4{font-size:17px;margin:5px 0 7px}
+.viz-inline-intro p{font-size:13px;line-height:1.8}
+.viz-inline-chain{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.viz-implementation-card{display:flex;align-items:flex-start;gap:11px;border:1px solid var(--border);border-radius:11px;background:var(--surface3);padding:15px}
+.viz-impl-index{flex:0 0 27px;color:var(--primary);font:800 13px ui-monospace,monospace}
+.viz-implementation-card strong{font-size:14px}
+.viz-implementation-card p{font-size:13px;line-height:1.75;margin:6px 0 9px}
+.viz-implementation-card small{display:block;font-size:12px;line-height:1.65;margin-top:4px;color:var(--muted)}
+.viz-implementation-shape{padding:16px 18px;background:var(--surface3);border:1px solid var(--border);border-radius:12px}
+.viz-implementation-shape strong{font-size:14px}.viz-implementation-shape p{font-size:13.5px;line-height:1.8;margin:8px 0}.viz-implementation-shape span{color:var(--muted);font-size:12px;line-height:1.7}
+/* Relevant module content is visible without opening docs. Docs are secondary references. */
+.deep-traces{margin-top:15px}
+.deep-teach .deep-section-top{margin-bottom:14px}
+@media(max-width:950px){.viz-example{grid-template-columns:1fr}.viz-inline-chain{grid-template-columns:1fr}}
+@media(max-width:620px){.viz-lesson{margin:16px 0;padding:12px;gap:14px;border-radius:13px}.viz-head{padding:15px}.viz-head h3{font-size:18px}.viz-head p{font-size:14px}.viz-compare-grid{grid-template-columns:1fr}.viz-context{padding:10px}.viz-location-head strong{font-size:15px}.viz-node-detail{padding:14px}.viz-recall{padding:15px}.viz-svg{min-width:820px}.viz-flow-scroll:after{content:'← 横向滑动可查看全部步骤 →';display:block;text-align:center;padding:3px;font-size:11px;color:var(--muted)} }
+@media(prefers-reduced-motion:reduce){.viz-svg-node rect:first-child{transition:none}}
+
+.deep-reference-details{border:1px solid var(--border);border-radius:11px;padding:14px 18px;margin-top:12px;background:var(--surface3)}
+.deep-reference-details>summary{cursor:pointer;font-size:13px;font-weight:700}
+.deep-reference-details .deep-traces{margin-top:12px}
+.deep-full-mechanism{margin:20px 0;padding:17px;border-radius:12px;border:1px solid var(--border);background:var(--surface3)}
+.deep-full-mechanism h4{font-size:15px;margin:0 0 12px}
+.deep-full-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.deep-full-grid>div{padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px}
+.deep-full-grid small{display:block;color:var(--primary);font-weight:800;font-size:12px}
+.deep-full-grid p{margin-top:7px;font-size:13px;line-height:1.75}
+@media(max-width:680px){.deep-full-grid{grid-template-columns:1fr}}
+.viz-lane-head{margin-top:4px}
+.viz-lane-scroll{background:var(--surface3);border:1px solid var(--border);border-radius:12px;overflow-x:auto}
+.viz-swimlanes{padding:15px;min-width:840px;display:grid;gap:10px}
+.viz-swimlane-row{display:flex;align-items:stretch;gap:6px;min-height:86px}
+.viz-swimlane-title{width:124px;flex:0 0 124px;border-radius:8px;font-weight:750;color:var(--ink);display:grid;place-items:center;font-size:12px;padding:10px;text-align:center}
+.viz-swimlane-title.is-control{background:rgba(50,132,176,.14)}
+.viz-swimlane-title.is-data{background:rgba(43,142,116,.15)}
+.viz-swimlane-ct{flex:1;min-width:0;border:1px solid var(--border);border-radius:9px;background:var(--surface);padding:12px 8px;text-align:center;display:flex;flex-direction:column;justify-content:center;gap:5px}
+.viz-swimlane-ct strong{font:800 11px ui-monospace,monospace;color:var(--primary)}
+.viz-swimlane-ct p{font-size:12px;font-weight:650;line-height:1.45}
+.viz-swimlane-arrow{align-self:center;flex:0 0 18px;color:var(--muted);font-weight:800}
+.viz-lane-note{font-size:12.5px;line-height:1.75;padding:13px 16px;border-left:3px solid var(--primary);background:var(--primary-soft);border-radius:9px}
+@media(max-width:620px){.viz-swimlanes{padding:10px;min-width:780px}.viz-swimlane-title{width:102px;flex-basis:102px}}

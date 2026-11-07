@@ -22,3 +22,12 @@ Task-specific skills:
 10. **V1.3 deep topics:** Keep original L1 IDs, and build L2–L4 as a separate, linked drill-down atlas. Read `skills/deep-topic-authoring/SKILL.md` before changing `site/js/depth-content.js` or interactive calculators. Depth pages must cite primary docs and label all computed examples as educational, not measured. Preserve existing browser progress export/import compatibility.
 
 11. **V1.4 coverage and active reasoning labs:** Read `skills/coverage-and-case-labs/SKILL.md` before touching `site/js/coverage.js`, `site/js/coverage-ui.js` or `site/js/reasoning.js`. A drag slider doing trivial arithmetic is not sufficient as a lesson: ask for a prediction, show observable control/data flow, require a diagnosis or action, then give evidence and counterexamples. Label any synthetic timing and scheduler as a teaching abstraction, never a benchmark. Audit every important new topic against the original six-module map, and report missing/partial/covered separately.
+
+
+## V1.5 / 原位可学的核心验收标准
+
+- 重要机制的**主要知识必须直接呈现在该专题页面**：一句话、系统位置、步骤/数据流、权衡、实例、反例和自测。不要把“去看链接”当作完整课程。
+- 增补课程时同步编辑 `site/js/visual-knowledge.js`；跨控制/数据层的高价值专题同步审阅 `site/js/visual-lanes.js`。禁止为凑图数添加没有真实含义的拓扑。
+- 交互图的点击必须改变可读的讲解；移动端允许局部横向滚动，但整页不得产生水平溢出。
+- 公开资料链接放到具体实现追踪后的可选区域；仍需保证来源可靠、版本可核实。
+- 继续保留本地进度键 `ai-inference-depth-progress-v1`，不得在用户不知情时清空或自动公开笔记。
