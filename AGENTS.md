@@ -31,3 +31,11 @@ Task-specific skills:
 - 交互图的点击必须改变可读的讲解；移动端允许局部横向滚动，但整页不得产生水平溢出。
 - 公开资料链接放到具体实现追踪后的可选区域；仍需保证来源可靠、版本可核实。
 - 继续保留本地进度键 `ai-inference-depth-progress-v1`，不得在用户不知情时清空或自动公开笔记。
+
+
+## V1.6 / 可交互机制图教学规范
+
+- 重点教程必须先说明该机制**是什么、输入、输出和内部状态**，再解释为什么需要与性能代价。只画带箭头的框不能作为机制解释完成的证据。
+- 阅读并遵循 `skills/mechanism-visual-teaching/SKILL.md`，五节重点原位图见 `site/js/mechanism-studio.js` 和 `site/mechanism-studio.css`；保留旧 `visualHTML` 与 L1 入口。
+- 修改在线 Softmax 演示时验证分块更新结果与直接 Softmax 数值一致；修改 Scheduler 必须核算每轮 Token Budget；修改 Warp 示例必须明确人工周期及 Active/Eligible/Issued 边界。
+- 所有按钮要真的切换可读步骤/视图/反馈，不得制造仅装饰的交互；移动端容许内部滚动，不得整页水平溢出。

@@ -158,3 +158,24 @@ tests/                   # 内容结构和链接检查
 - 虽然 25 个专题现在都有直观教学内容，**不表示所有主流技术已被源码级、实测级全面覆盖**。完整度清单仍需持续更新。
 
 开发前请先读 `AGENTS.md` 以及 `skills/deep-topic-authoring/SKILL.md` 和 `skills/lesson-authoring/SKILL.md`。新增专题必须把主要知识直接写入页面，不得仅附外部 URL 代替讲解。
+
+
+## V1.6 · 核心机制的分步图解（2026-11-07）
+
+在原六大领域、25 个深度专题和旧进度结构不变的前提下，增加五个可直接在网页学习的**原创可交互机制解剖台**：
+
+| 专题 | 图解中真正观察什么 |
+|---|---|
+| PD 分离 | 控制流与 KV 数据流如何交接，混部和分离的差异，为什么 D 必须等待匹配的历史 KV |
+| vLLM V1 Scheduler | 两轮 8-Token Budget 的请求分配、Chunked Prefill 和 Model Runner 的边界 |
+| PyTorch 编译执行 | Eager 与融合后的中间 Tensor 流量、FX/Dynamo/Inductor/Triton/PTX、编译期与运行期 |
+| FlashAttention | Q/K/V 分块与每行在线 Softmax 的 m/l/a 更新，用四个标量评分验证合并结果 |
+| Warp / Scoreboard | 3 个 Warp 与 8 个**人为构造**发射周期的依赖等待、其他 Warp 填槽、空泡原因 |
+
+每个解剖台都按 **定义与边界 → 术语 → 分步机制图（两种视角） → 每步数据输入/输出、动机与误区 → 机制判断 → 三点复述** 编排。优先让主要解释出现在页面内；官方资料用于版本与细节核对。
+
+所有动态图是**教学模型而非实测**：不复现 vLLM 的每个 Scheduler 条件，不预测 B200 周期，也不代表固定的 FlashAttention Kernel 线程布局。页面内清晰标注前提。
+
+主要实现：`site/js/mechanism-studio.js` 与 `site/mechanism-studio.css`，其课程内容不依赖外部图片、脚本或网络服务。维护规则见 `skills/mechanism-visual-teaching/SKILL.md`。
+
+验证：`npm test`；`tests/mechanism-studio.test.mjs` 检查数值与映射；隔离式浏览器组件测试检查交互与桌面/移动布局。完整网站浏览器导航在受限运行环境不能保证，GitHub Pages 发布后仍需做一次线上点击回归。

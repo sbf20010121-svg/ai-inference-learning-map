@@ -47,5 +47,5 @@ test('L3 解释要先出现在页面，资料链接只辅助核对；不破坏�
  assert.match(js,/deep-reference-details/);
  assert.match(js,/ai-inference-depth-progress-v1/);
  assert.match(html,/\.\/visual\.css/);
- assert.match(html,/V1\.5/);
+ assert.match(html,/V1\.6/);
 });

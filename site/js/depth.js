@@ -6,6 +6,7 @@ import {depthModules,depthTopics,depthPaths,depthById,validateDepthData} from '.
 import {coverageHTML,auditState} from './coverage-ui.js';
 import {reasoningHTML,handleReasoning} from './reasoning.js';
 import {visualHTML,inlineImplementation,handleVisualClick,validateVisualKnowledge} from './visual-atlas.js';
+import {handleMechanismStudioClick,featuredMechanismIds} from './mechanism-studio.js';
 validateDepthData();
 validateVisualKnowledge(depthTopics);
 const $=(selector,root=document)=>root.querySelector(selector);
@@ -88,9 +89,20 @@ function relationReason(src,dst){const target=depthById.get(dst);if(!target)retu
 }
 function contentHTML(t){const mod=depthModules.find(m=>m.id===t.module);return `<article class="deep-article"><div class="deep-breadcrumb"><button type="button" data-dmap>知识地图</button><span>›</span><span>${esc(mod.name)}</span><span>›</span><strong>${esc(t.title)}</strong></div><div class="deep-article-head"><span class="deep-topic-tag" style="--dm:${MODCOLORS[t.module]}">${esc(mod.name)} · ${esc(t.depth)} 深度</span><h2>${esc(t.title)}</h2><p>${esc(t.summary)}</p><div class="deep-relation-inline"><span>与原地图的关系</span><button type="button" data-dparent="${esc(t.parent)}">返回对应的 L1 概览课 ↗</button></div></div>${visualHTML(t)}<div class="deep-levels" role="tablist" aria-label="选择学习深度">${LEVELS.map((lv,i)=>`<button type="button" role="tab" data-dlevel="${lv}" aria-selected="${state.level===lv}" class="${state.level===lv?'active':''}"><span>${lv}</span><strong>${['工作机制','源码与执行','实验与优化'][i]}</strong></button>`).join('')}</div><div id="deepTeachArea">${state.level==='L2'?mechanismPage(t):state.level==='L3'?implementationPage(t):experimentPage(t)}</div>${quiz(t)}<div class="deep-bridge"><div><small>跨模块继续学习 · 解释知识为什么相连</small><h3>从这个机制继续往哪看？</h3></div><div class="deep-bridge-links">${t.related.map(id=>{const r=depthById.get(id);return `<button type="button" data-dtopic="${id}"><span>${esc(moduleName(r.module))}</span><strong>${esc(r.title)} ↗</strong><small>${esc(relationReason(t.id,id))}</small></button>`}).join('')}</div></div><div class="deep-sources"><h4>可核查的公开资料</h4>${t.refs.map(([name,url])=>`<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(name)} ↗</a>`).join('')}</div><div class="deep-study-state"><div><h4>学习进度与笔记</h4><p>标记自己的掌握情况，不自动判断你已具备真实工程能力。</p><div class="deep-progress-buttons">${[['learning','学习中'],['known','已理解'],['review','待验证']].map(([id,label])=>`<button type="button" data-dstatus="${id}" class="${topicStatus(t.id)===id?'active':''}">${label}</button>`).join('')}</div></div><label>我的问题与验证计划<textarea id="deepNote" maxlength="2500" placeholder="例如：我还不理解 KV Connector 何时释放 P 端的 Block……">${esc(state.progress[t.id]?.note||'')}</textarea></label></div></article>`}
 function routeMini(){const route=depthPaths.find(x=>x.id===state.route)||depthPaths[0];return `<div class="deep-path-flow"><span class="deep-path-label">当前串联路径 · ${esc(route.name)}</span><div class="deep-path-stations">${route.ids.map((id,i)=>`<button type="button" data-dtopic="${id}" class="${state.topic===id?'active':''}"><em>${i+1}</em><span>${esc(depthById.get(id).title)}</span></button>`).join('<span class="deep-path-arrow">→</span>')}</div></div>`}
-export function renderDepthAtlas(){const root=$('#depthContent');if(!root)return;const t=current();root.innerHTML=`<div class="deep-intro"><span class="eyebrow accent-text">V1.5 · 原位图解与机制深读</span><h1>不止知道“是什么”，还要知道“为什么这样运行”<span class="headline-dot">.</span></h1><p>六大模块保持不变。先在本页看懂<strong>系统位置、架构图、数据流、设计权衡与张量例子</strong>，再深入源码和实训。你已经学过的概念可以跳过；微架构与机器人模型继续并行。</p><div class="deep-hero-numbers"><span><b>6</b> 个领域</span><span><b>${depthTopics.length}</b> 个深度专题</span><span><b>${depthPaths.length}</b> 条跨领域路径</span><span>全部中文 · 不上传内网信息</span></div></div>${pathBar()}${routeMini()}<div class="deep-layout">${tree()}${contentHTML(t)}</div>${coverageHTML()}`;}
+
+const spotlight=[
+ ['pd-disagg','PD 分离','看清请求路由、KV 交接与 D 端续接'],
+ ['vllm-scheduler','vLLM 调度','重放两轮 Token Budget 和队列状态'],
+ ['compiler-lowering','编译执行','沿 FX / Fusion / PTX / Runtime 路径追踪'],
+ ['attention-tiling','FlashAttention','跟随两个 Tile 更新 Softmax 的 m/l/a'],
+ ['warp-issue','Warp 发射','观察 Load 依赖、Eligible 和发射空泡']
+];
+function mechanismIndexHTML(){return `<section class="m16-home-index"><span class="eyebrow accent-text">V1.6 / 核心机制图解</span><h2>先学明白它怎么运行，再看性能收益</h2><p>五组分步图和具体执行例子，点击直接在网页里学习；不需要先去读外部文章。</p><div class="m16-home-list">${spotlight.map(([id,name,desc],i)=>`<button type="button" data-dtopic="${id}"><span>${String(i+1).padStart(2,'0')} / 机制图解</span><strong>${esc(name)}</strong><small>${esc(desc)}</small></button>`).join('')}</div></section>`}
+
+export function renderDepthAtlas(){const root=$('#depthContent');if(!root)return;const t=current();root.innerHTML=`<div class="deep-intro"><span class="eyebrow accent-text">V1.6 · 机制解剖与深读</span><h1>不止知道“是什么”，还要知道“为什么这样运行”<span class="headline-dot">.</span></h1><p>六大模块保持不变。先在本页看懂<strong>系统位置、架构图、数据流、设计权衡与张量例子</strong>，再深入源码和实训。你已经学过的概念可以跳过；微架构与机器人模型继续并行。</p><div class="deep-hero-numbers"><span><b>6</b> 个领域</span><span><b>${depthTopics.length}</b> 个深度专题</span><span><b>${depthPaths.length}</b> 条跨领域路径</span><span>全部中文 · 不上传内网信息</span></div></div>${mechanismIndexHTML()}${pathBar()}${routeMini()}<div class="deep-layout">${tree()}${contentHTML(t)}</div>${coverageHTML()}`;}
 export function bindDepthAtlas(){const root=$('#depthView');if(!root)return;
  root.addEventListener('click',async e=>{
+  if(handleMechanismStudioClick(e.target,root,current()))return;
   if(handleVisualClick(e.target,current(),root))return;
   const el=e.target.closest('button');if(!el)return;
   if(el.hasAttribute('data-audittoggle')){auditState.open=!auditState.open;$('#knowledgeAudit').outerHTML=coverageHTML();return}
