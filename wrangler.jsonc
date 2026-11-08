@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "ai-inference-private-sync",
+  "name": "ai-inference-learning-map",
   "main": "cloud-sync-worker.js",
   "compatibility_date": "2026-10-01",
   "workers_dev": true,
@@ -8,5 +8,9 @@
     "SITE_URL": "https://sbf20010121-svg.github.io/ai-inference-learning-map/",
     "ALLOWED_LOGIN": "sbf20010121-svg",
     "DATA_REPO": "sbf20010121-svg/ai-inference-learning-private"
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
   }
 }
