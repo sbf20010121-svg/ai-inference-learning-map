@@ -67,3 +67,7 @@ Read `skills/cloud-sync-security/SKILL.md` and `docs/cloud-sync-setup.md` before
 - 按 `skills/code-tour-authoring/SKILL.md` 维护。所有深度专题的 L3 都必须有本页可读的执行骨架、阶段代码、真实输入输出和变量定义；原六大模块和稳定 ID 不可更改。
 - 用 `validateCodeTours(depthTopics.map(t=>t.id))` 核对所有专题覆盖。伪代码必须声明为教学抽象，不得将自造函数名当作源码 API 或微架构 RTL。
 - 外部资料用于版本核查，不能替代页面内的解释；电脑与手机都必须能点击阶段并正确联动。验证 `npm test`，保留私人云同步与原进度。
+
+
+## Research-first prototype policy (2026-11-08)
+Before expanding other lessons, read `skills/research-lesson/SKILL.md` and `docs/research-course-notes.md`. Do not turn a conceptual node into a generic template and call it deep. Preserve the two prototypes in `site/research-labs.html`, verify every calculation against `site/js/research-models.js`, and keep IR snippets explicitly marked as illustrations unless built from a real captured dump. Browser progress and private cloud synchronization must remain unchanged by entering/leaving the research pages.

@@ -1,3 +1,15 @@
+## 研究型课程样板（2026-11-08，先验证质量再扩展）
+
+新页面：[线性注意力 Gated DeltaNet](site/research-labs.html?topic=linear) / [Triton 编译与 IR](site/research-labs.html?topic=compiler)。已直接从旧课程 `linear-state` 与 `compiler-lowering` 进入；**六大模块、原课程 ID 和进度不变**。
+
+本次从论文/官方源码研究、建立数学模型开始，再实现能看到真实对象和中间状态的图：
+- Gated DeltaNet：逐 Token 预测/残差/写入状态矩阵；对比直接累加；验证两个 Token 的仿射 Chunk 组合；对应 FLA 实现。
+- Triton：N=10 的 Program/Mask、TTIR/TTGIR/LLVM IR/PTX 的不同信息、算子融合对中间数据写回的改变；真实源码和 IR 必须按固定版本核对。
+
+**质量说明：** 数学不变量和本地 Chromium 桌面/手机交互已检查，非 GPU 实测；页面中的 IR 字句为结构性示意，非目标 GPU 的真实汇编。新内容需继续采用 `skills/research-lesson/SKILL.md` 的 source-first 质量标准。研究依据与边界见 `docs/research-course-notes.md`。
+
+---
+
 
 ## V1.9：用可操作的状态图理解机制 + 就地解释变量
 

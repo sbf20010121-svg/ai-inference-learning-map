@@ -143,3 +143,11 @@
 ## V2.2：六大模块全站 L3 代码导读（已实施）
 
 已为既有 25 个专题增加按机制分段的可交互伪代码、输入/状态/输出因果解释、术语表和可核对的真实实现入口。L2/核心 5 步学习保持简洁。**这些是实现逻辑导读，不是固定 commit 的逐行源码审计，也不是 B200 性能实测。** 下一步重点在真实源码核验：vLLM V1、Triton/LLVM IR、MoE 专家并行后端、FlashAttention 和实际 SASS/NCU。
+
+
+## 2026-11-08 Research-first 首批样板（已制作，等待使用反馈）
+- 已为 `linear-state` 和 `compiler-lowering` 建立独立深入页，不重排现有节点或覆盖原学习记录。
+- Gated DeltaNet 递推采用论文 + 固定 FLA 源码；用两个维度的可检查状态、Delta 抵消旧值、门控衰减和仿射 Chunk 等价性演示数学机制。
+- Triton 基于官方 vector-add 及编译阶段资料；教学数组呈现 Program、Offset、Mask 及 TTIR/TTGIR/LLVM IR/PTX 语义变化，并提供独立算子融合读写量对照。
+- 已完成本地数学单元测试与 Chromium 390/1280 视口点击检查（无页面脚本错误/整页横向溢出）。未完成真实 GPU 编译产物对比或 Nsight 实测；不把 25 节旧内容标成研究深度完成。
+- 下一步依据用户试学反馈验证这两节的解释效果，然后逐一迁移方法到 vLLM Scheduler、MoE、GEMM、VLA 等高价值节点。

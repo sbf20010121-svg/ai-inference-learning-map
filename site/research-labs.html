@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="description" content="基于真实文献与开源实现的 AI 推理研究型课程样板：Gated DeltaNet 状态更新和 Triton 编译链路。" />
+<title>深入研究课 · AI 推理技术地图</title>
+<link rel="stylesheet" href="./research-labs.css" />
+<script type="module" src="./js/research-labs.js"></script>
+</head>
+<body>
+<header class="sitehead"><a class="back" href="./index.html#map">← 返回知识地图</a><div class="brand"><span class="brandmark">◫</span><div><strong>研究型深读</strong><small>AI 推理技术知识图谱 · 首批质量样板</small></div></div><span class="quality-tag">实质机制 · 数学可检验 · 源码有出处</span></header>
+<main class="layout">
+<section class="intro"><span class="eyebrow">不是概念清单，也不是周期仿真</span><h1>研究一条真实机制，直到能自己推导、解释与验证</h1><p>这两节从公开论文和代码出发；每一步都追踪<strong>确定的数据对象</strong>。图中数值由可检查的 JavaScript 数学模型计算，真实 GPU 性能另需实测。</p><div class="topic-select" role="group" aria-label="选择研究专题"><button type="button" class="active" data-topic="linear" aria-pressed="true">① Gated DeltaNet：状态怎样更新？</button><button type="button" data-topic="compiler" aria-pressed="false">② Triton 编译：语义怎样落到指令？</button></div></section>
+<section id="linear" class="topic" aria-labelledby="linearTitle">
+<div class="chapter-head"><span class="tag">模型 → 算法 → GPU Kernel</span><h2 id="linearTitle">线性注意力：Gated DeltaNet 真的“记住”了什么？</h2><p>聚焦 <strong>Gated DeltaNet v1 的单头标量门控状态递推</strong>。目标不是记住“线性复杂度”，而是解释状态为何要先衰减、预测旧值、算残差再更新，并理解 Chunk 如何与递推对应。</p></div>
+<nav class="sections" aria-label="线性注意力的研究视角"><button type="button" data-tab="linear:process" class="active" aria-pressed="true">1 · 操作状态</button><button type="button" data-tab="linear:derive" aria-pressed="false">2 · 推导 Chunk</button><button type="button" data-tab="linear:source" aria-pressed="false">3 · 代码与执行</button><button type="button" data-tab="linear:diagnose" aria-pressed="false">4 · 分析与自测</button></nav>
+<div class="tab-content" data-panel="linear:process">
+<div class="lesson-hook"><strong>核心对象：一块可以被改写的矩阵状态 S</strong><p>不像标准 Softmax Attention 在 Decode 时逐位置读取历史 KV，以下形式用固定形状 <code>S ∈ ℝ^{dₖ×dᵥ}</code> 汇总历史。这里用 <code>2×2</code> 的数值玩具例子，只用于解释状态更新，不代表所有线性注意力。</p></div>
+<div class="equation"><span>选定的递推机制</span><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><mtable><mtr><mtd><msub><mi>M</mi><mi>t</mi></msub><mo>=</mo><msub><mi>γ</mi><mi>t</mi></msub><msub><mi>S</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></mtd></mtr><mtr><mtd><msub><mi>δ</mi><mi>t</mi></msub><mo>=</mo><msub><mi>v</mi><mi>t</mi></msub><mo>−</mo><msubsup><mi>k</mi><mi>t</mi><mi>T</mi></msubsup><msub><mi>M</mi><mi>t</mi></msub></mtd></mtr><mtr><mtd><msub><mi>S</mi><mi>t</mi></msub><mo>=</mo><msub><mi>M</mi><mi>t</mi></msub><mo>+</mo><msub><mi>β</mi><mi>t</mi></msub><msub><mi>k</mi><mi>t</mi></msub><msubsup><mi>δ</mi><mi>t</mi><mi>T</mi></msubsup></mtd></mtr></mtable></math><small>先遗忘（γ），再用旧状态预测，再写入“还差多少”（δ）。在这节中 q=k，输出为 qᵀS；这里 β、γ 仅取教学值。</small></div>
+<div class="terms"><span><b>S</b> 历史矩阵状态 (2×2)</span><span><b>k</b> 当前 Key (2维)</span><span><b>v</b> 当前 Value (2维)</span><span><b>γ</b> 遗忘因子</span><span><b>β</b> 改写强度</span><span><b>δ</b> 新值与预测旧值之差</span><span><b>q</b> 读取状态的 Query</span></div>
+<div class="controls"><div class="select-label">选择更新规则：<button type="button" class="active" data-rule="delta">Delta：纠正旧记忆</button><button type="button" data-rule="additive">直接加法：不纠错</button></div><div class="select-label">β（写入程度）<button type="button" data-beta="0.5" class="active">0.5</button><button type="button" data-beta="1">1.0</button></div><div class="select-label">γ（保留程度）<button type="button" data-gamma="1" class="active">1.0</button><button type="button" data-gamma="0.8">0.8</button></div></div>
+<div class="step-controls"><button type="button" data-linear-prev>← 前一个 Token</button><span id="linear-step-label" class="step-text">初始 S₀</span><button type="button" data-linear-next>处理下一个 Token →</button></div>
+<div id="linear-sim" class="sim" aria-live="polite"></div>
+<div class="takeaway"><b>试着解释：</b> 第 3 个 Token 再次写入 <code>k=[1,0]</code> 时，为什么 Delta 规则不会像直接累加那样无限保留该位置的旧值？请切换 β=1、γ=1 和两种规则，查看矩阵第一行。</div>
+</div>
+<div class="tab-content" data-panel="linear:derive" hidden>
+<div class="lesson-hook"><strong>Chunk 不是把多个 Token 的状态“独立算好再相加”</strong><p>每个 Token 的更新依赖前一个状态。关键在于把它写成<strong>可组合的仿射状态变换</strong>；这解释了为什么可以设计并行/Chunkwise 算法，但不等于真实 GDN Chunk Kernel 就只做下面两次普通 GEMM。</p></div>
+<div class="equation"><span>从 Delta 规则整理</span><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><mtable><mtr><mtd><msub><mi>S</mi><mi>t</mi></msub><mo>=</mo><msub><mi>A</mi><mi>t</mi></msub><msub><mi>S</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>B</mi><mi>t</mi></msub></mtd></mtr><mtr><mtd><msub><mi>A</mi><mi>t</mi></msub><mo>=</mo><msub><mi>γ</mi><mi>t</mi></msub><mo>(</mo><mi>I</mi><mo>−</mo><msub><mi>β</mi><mi>t</mi></msub><msub><mi>k</mi><mi>t</mi></msub><msubsup><mi>k</mi><mi>t</mi><mi>T</mi></msubsup><mo>)</mo></mtd></mtr><mtr><mtd><msub><mi>B</mi><mi>t</mi></msub><mo>=</mo><msub><mi>β</mi><mi>t</mi></msub><msub><mi>k</mi><mi>t</mi></msub><msubsup><mi>v</mi><mi>t</mi><mi>T</mi></msubsup></mtd></mtr></mtable></math><small>A 是对旧状态的线性变换，B 是本轮新增信息；这里 I 是 2×2 单位矩阵。</small></div>
+<div class="compose-diagram"><div class="compose-node">Token 1<br/><strong>(A₁,B₁)</strong></div><div class="compose-join">按顺序组合<br/>A₂A₁<br/>A₂B₁+B₂</div><div class="compose-node">Token 2<br/><strong>(A₂,B₂)</strong></div></div>
+<div id="linear-chunk" class="sim" aria-live="polite"></div>
+<p class="note">“组合律”说明可以将连续的状态变换形成一个可分块处理的对象。但真正的高效 Chunk Kernel 还会处理序列内三角结构、WY 表示、门控前缀和、矩阵乘法、状态传递和误差，并不等于所有 DeltaNet/SSM 的算法相同。</p>
+</div>
+<div class="tab-content" data-panel="linear:source" hidden>
+<div class="lesson-hook"><strong>把数学模型与真实开源实现对齐</strong><p>下面是按 FLA 代码重写的<strong>机制伪代码</strong>，并非逐行复制真实源码。点击阶段会显示相应的输入、状态和 GPU 组织方式。真实实现链接固定到特定 Git 提交。</p></div>
+<div class="source-grid"><div class="source-menu" id="linear-code-nav"></div><div class="source-body" id="linear-code"></div></div>
+<div class="source-links"><a target="_blank" rel="noopener noreferrer" href="https://github.com/fla-org/flash-linear-attention/blob/98193113ecb7835143252a786e06933e371b67cc/fla/layers/gated_deltanet.py">FLA 层：选 Chunk / Recurrent</a><a target="_blank" rel="noopener noreferrer" href="https://github.com/fla-org/flash-linear-attention/blob/98193113ecb7835143252a786e06933e371b67cc/fla/ops/gated_delta_rule/fused_recurrent.py">FLA 单步递推 Kernel</a><a target="_blank" rel="noopener noreferrer" href="https://github.com/fla-org/flash-linear-attention/blob/98193113ecb7835143252a786e06933e371b67cc/fla/ops/gated_delta_rule/chunk.py">FLA Chunk 调用入口</a></div>
+</div>
+<div class="tab-content" data-panel="linear:diagnose" hidden>
+<div class="case-card"><small>合成证据，非 GPU 实测</small><h3>线上 Decode 比预期慢：先把哪一部分归因到状态递推？</h3><p>同一请求单步端到端耗时 28 μs，其中 Nsight 时间线上递推 Kernel 占 5 μs；其他 Kernel 与 CPU 提交、同步等总共 23 μs。当前没有单 Kernel 的指令归因数据。</p><div class="timebar"><div style="width:18%">递推 5</div><div style="width:82%">其他 23</div></div><div class="quiz" data-question="linear"><button type="button" data-answer="linear:0">直接换掉 Gated DeltaNet 状态更新，因为它最慢</button><button type="button" data-answer="linear:1">先将 23 μs 拆成其他 Kernel、提交和同步，再针对证据设计对照</button><button type="button" data-answer="linear:2">把 Chunk 大小翻倍，肯定降低 Decode 延迟</button><div class="answer" id="linear-answer" aria-live="polite"></div></div></div>
+<div class="outcome"><h3>达到什么程度才算学会这节？</h3><p>能从 <code>Sₜ</code> 推导出 <code>δₜ</code>、解释“纠正旧值”和门控的差别；能展示两步仿射组合的计算；能在 FLA 的 Recurrent Kernel 定位 State update，并说明为什么 Prefill 的 Chunk 路径不同。</p><div class="relations">连接：<a href="./index.html#depth/linear-state/L2">线性注意力节点</a> · <a href="./index.html#depth/gemm-tiling/L2">GEMM/Tiling</a> · <a href="./index.html#depth/profiling/L2">性能归因</a></div></div>
+</div>
+</section>
+<section id="compiler" class="topic" aria-labelledby="compilerTitle" hidden>
+<div class="chapter-head"><span class="tag">PyTorch / Triton / LLVM / Runtime / GPU</span><h2 id="compilerTitle">编译器：相同计算在不同 IR 中究竟改变了什么？</h2><p>用 Triton 官方 <strong>向量加法</strong>作为可核对的基线。它不是编译器全貌，但足以观察 Program Index、Mask、布局语义和设备代码。我们不虚构 B200 的 SASS。</p></div>
+<nav class="sections" aria-label="编译器的研究视角"><button type="button" data-tab="compiler:process" class="active" aria-pressed="true">1 · Program 与 Mask</button><button type="button" data-tab="compiler:derive" aria-pressed="false">2 · IR 分层观察</button><button type="button" data-tab="compiler:source" aria-pressed="false">3 · 框架与 Runtime</button><button type="button" data-tab="compiler:diagnose" aria-pressed="false">4 · 验证与诊断</button></nav>
+<div class="tab-content" data-panel="compiler:process">
+<div class="lesson-hook"><strong>从输入数据出发：N=10 个元素，BLOCK=8 时为什么需要两个 Program？</strong><p>一个 Triton Program 实例负责处理一个逻辑向量 Tile。<code>program_id</code> 选择当前 Tile，<code>arange</code> 产生偏移，<code>mask</code> 防止最后一个 Tile 越界。<strong>逻辑元素偏移不等于固定的物理 Lane 分配</strong>；真实线程映射要看 TTGIR Layout 和编译结果。</p></div>
+<div class="controls"><div class="select-label">每个 Program 的元素数 <b>BLOCK</b>：<button class="active" type="button" data-block="8">8</button><button type="button" data-block="4">4</button></div><div class="select-label" id="programButtons">当前 Program：</div></div>
+<div class="equation"><span>决定 Program 数和尾块 Mask 的公式</span><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><mtable><mtr><mtd><msub><mi>n</mi><mi>programs</mi></msub><mo>=</mo><mo>⌈</mo><mfrac><mi>N</mi><mi>BLOCK</mi></mfrac><mo>⌉</mo></mtd></mtr><mtr><mtd><msub><mi>offset</mi><mi>j</mi></msub><mo>=</mo><mi>pid</mi><mo>×</mo><mi>BLOCK</mi><mo>+</mo><mi>j</mi></mtd></mtr><mtr><mtd><msub><mi>mask</mi><mi>j</mi></msub><mo>=</mo><mo>(</mo><msub><mi>offset</mi><mi>j</mi></msub><mo>&lt;</mo><mi>N</mi><mo>)</mo></mtd></mtr></mtable></math></div>
+<div id="compiler-tiles" class="sim" aria-live="polite"></div>
+<div class="takeaway"><b>预测：</b> 当 N=10、BLOCK=8，最后一个 Program 的 8 个偏移中几个有效？切换 Program 1，观察绿色的有效元素和灰色的越界元素。没有 Mask 的 <code>tl.load/tl.store</code> 会有什么风险？</div>
+</div>
+<div class="tab-content" data-panel="compiler:derive" hidden>
+<div class="lesson-hook"><strong>同一数学含义逐级落成执行细节</strong><p>下面的代码片段是根据官方教程重写的结构性示意，<strong>不是从某台 GPU 直接导出的原样 IR</strong>。真实 IR 中的类型、Layout 和指令以固定软件版本、目标设备和编译参数为准。</p></div>
+<div class="pipeline" id="compiler-pipeline" aria-label="点击选择一个编译表示层级"></div>
+<div class="source-body" id="compiler-ir"></div>
+<div class="terms"><span><b>TTIR</b>：Tensor/Program 级 Triton IR</span><span><b>TTGIR</b>：引入 GPU Layout 等信息的 TritonGPU IR</span><span><b>LLVM IR</b>：较低层目标代码生成用 IR</span><span><b>PTX</b>：NVIDIA 虚拟 ISA</span><span><b>SASS</b>：实际设备机器指令</span></div>
+</div>
+<div class="tab-content" data-panel="compiler:source" hidden>
+<div class="lesson-hook"><strong>先分清：模型图编译路径和直接写 Triton Kernel，不是一回事</strong><p><code>torch.compile</code> 的典型流程有 Dynamo / FX / Inductor，后端可能生成 Triton/C++ 或调用库；而手写 <code>@triton.jit</code> 可以直接进入 Triton 编译器。GPU 运行时启动 Kernel，通常不会每次重新做全套编译。</p></div>
+<div class="route-controls"><button type="button" data-compile-route="torch" class="active">从 torch.compile 出发</button><button type="button" data-compile-route="triton">直接写 Triton Kernel</button></div>
+<div id="compiler-routes" class="sim" aria-live="polite"></div>
+<div class="fusion-section"><h3>图级优化的实质例子：融合前后，哪些值还要写回显存？</h3><p>比较同一个表达式 <code>y = ReLU(2x+1)</code> 的三次独立执行和一个融合 Kernel。输入 <code>x=[−2,−1,1,2]</code>，结果必须一样；变化的是<strong>中间张量是否物化到全局内存</strong>。</p><div class="route-controls"><button type="button" data-fusion="eager" class="active">三个独立 Kernel</button><button type="button" data-fusion="fused">一个融合 Kernel</button></div><div id="compiler-fusion" class="sim" aria-live="polite"></div></div>
+<div class="source-links"><a target="_blank" rel="noopener noreferrer" href="https://docs.pytorch.org/docs/stable/torch.compiler.html">PyTorch Compiler</a><a target="_blank" rel="noopener noreferrer" href="https://pytorch.org/blog/triton-kernel-compilation-stages/">官方 Triton IR 对照文章</a><a target="_blank" rel="noopener noreferrer" href="https://github.com/triton-lang/triton/blob/6d86e10586dec94539c6390b5cfce4be2d0d621a/python/tutorials/01-vector-add.py">固定提交的 Triton 向量加法源码</a><a target="_blank" rel="noopener noreferrer" href="https://mlir.llvm.org/docs/LangRef/">MLIR Dialect 基础</a></div>
+</div>
+<div class="tab-content" data-panel="compiler:diagnose" hidden>
+<div class="case-card"><small>真实语义问题，非性能实测</small><h3>程序改了 BLOCK=4 → BLOCK=8，能断言 GPU 加速了吗？</h3><p>对 N=10，Program 数从 3 减到 2，但第二种配置有更多越界 Mask 槽位。图中的有效计算结果完全一样。</p><div class="quiz" data-question="compiler"><button type="button" data-answer="compiler:0">能。Program 数少一定意味着耗时短</button><button type="button" data-answer="compiler:1">不能。需看指令/寄存器/访存、真实 Launch 配置和基准测试</button><button type="button" data-answer="compiler:2">不能。因为 Mask 以后 GPU 不会执行任何程序</button><div class="answer" id="compiler-answer" aria-live="polite"></div></div></div>
+<div class="outcome"><h3>核验路径：真正读到编译产物</h3><pre class="check-code"><code># 在有 Triton + CUDA GPU 的环境中，获取编译后的各层表示
+kernel = add_kernel[grid](x,y,out,n,BLOCK_SIZE=...)
+print(kernel.asm['ttir'])
+print(kernel.asm['ttgir'])
+print(kernel.asm['llir'])
+print(kernel.asm['ptx'])
+# 再结合 cubin / cuobjdump / nvdisasm 与 Nsight 验证 SASS</code></pre><p>记录 Triton/PyTorch、GPU 型号、计算能力、编译参数和输入 Shape。只有观察目标设备的生成物与 Profiling，才能评估真正的优化收益。</p><div class="relations">连接：<a href="./index.html#depth/compiler-lowering/L2">编译器节点</a> · <a href="./index.html#depth/triton-tiling/L2">Triton Tiling</a> · <a href="./index.html#depth/warp-issue/L2">Warp/指令发射</a></div></div>
+</div>
+</section>
+<footer class="footer"><p><strong>课程质量状态：</strong>已核对公开机制与代码入口；玩具数值模型有不变量测试；没有声称已运行 B200、Triton 编译器或任何真实 GPU 性能实验。</p><p>以上是两节样板，不表示其余全部专题已重写。经过实际试学与审查后，再逐个向主图谱扩展。</p></footer>
+</main>
+</body>
+</html>

@@ -102,3 +102,7 @@ body:has(#depthView:not([hidden])) .workspace{padding-top:22px;max-width:1250px}
 .fs-cycles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.fs-cycles>div{border:1px solid var(--border);background:var(--surface);border-radius:7px;padding:10px 8px;display:grid;gap:4px;min-width:0}.fs-cycles>div.active{border:2px solid var(--primary);background:var(--primary-soft)}.fs-cycles>div.empty{border-style:dashed}.fs-cycles small{color:var(--muted);font-size:10px}.fs-cycles strong{font-size:11px;line-height:1.4;overflow-wrap:anywhere}
 .focus-full-diagram>.focus-figure{margin-top:15px}.focus-full-diagram>.focus-view-toggle{margin-top:15px}
 @media(max-width:590px){.focus-scene{padding:11px}.fs-line,.fs-compare,.fs-chunks{gap:4px}.fs-box{padding:10px 5px}.fs-box strong{font-size:11px}.fs-box small{font-size:10px}.fs-arrow{font-size:13px;min-width:8px}.fs-token{min-height:33px}.fs-budget>div{gap:3px}.fs-cycles{grid-template-columns:repeat(4,minmax(0,1fr));gap:3px}.fs-cycles>div{padding:7px 3px}.fs-cycles strong{font-size:9px}}
+
+/* 研究型深读仍归属原有节点，不覆盖用户阅读状态。 */
+.focus-research-entry{display:block;margin:0 0 12px;padding:11px 14px;background:#e8f4f8;border:1px solid #a8d3df;color:#0c6981;text-decoration:none;font-size:13px;line-height:1.5;border-radius:9px;font-weight:650}
+.focus-research-entry:hover,.focus-research-entry:focus-visible{background:#d8edf5}
