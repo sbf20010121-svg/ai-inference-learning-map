@@ -53,6 +53,6 @@ test('network and focus reader expose diagrams and preserve existing modules/rou
  const app=readFileSync(new URL('../site/js/app.js',import.meta.url),'utf8');
  const html=readFileSync(new URL('../site/index.html',import.meta.url),'utf8');
  assert.match(net,/netStudioSelect/);assert.match(net,/renderGalleryCase/);
- assert.match(focus,/data-open-studio/);assert.match(app,/network\/studio/);
+ assert.match(focus,/renderMechanism/);assert.match(app,/network\/studio/);
  assert.match(html,/mechanism-gallery\.css/);
 });

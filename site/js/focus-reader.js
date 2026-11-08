@@ -1,81 +1,139 @@
-/**
- * V1.7 专注阅读：一屏一个问题、明确浏览进度、与深度课程共用知识数据。
- * This module owns presentation only. Progress is controlled by depth.js.
- */
-import {featuredMechanisms,mechanismFigure} from './mechanism-studio.js';
-import {visualFor} from './visual-atlas.js';
-import {depthModules,depthTopics,depthById} from './depth-content.js';
-import {focusScene} from './focus-scenes.js';
-import {studioOptions} from './mechanism-gallery.js';
-import {renderCodeTour} from './code-tour-view.js';
-import {moeDeepDiveHTML} from './moe-deep-dive.js';
-import {hasDerivation,renderInContext,renderWorkedDerivation} from './mechanism-derivations.js';
-import {renderCoursePhase,courseStages} from './course-reader.js';
-import {courseNotes} from './course-notes.js';
-const esc=(v='')=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-export const FOCUS_PAGES=[
- {label:'先看懂',hint:'它是什么'},
- {label:'运行机制',hint:'一步步怎么做'},
- {label:'具体例子',hint:'数据怎样变化'},
- {label:'自己判断',hint:'能否举一反三'},
- {label:'记住重点',hint:'巩固与下一步'},
- {label:'源码追踪',hint:'可选深入'},
- {label:'性能验证',hint:'可选深入'}
-];
-const has=(id)=>Object.hasOwn(featuredMechanisms,id);
-const stages=t=>courseNotes[t.id]?courseStages(t.id):has(t.id)?featuredMechanisms[t.id].steps:t.stage;
-const points=t=>has(t.id)?featuredMechanisms[t.id].recall:visualFor(t).remember;
-const researchEntry=t=>{
- const routes={
-  'linear-state':['./research-labs.html?topic=linear','Gated DeltaNet：逐 Token 状态与 Chunk 合成'],
-  'compiler-lowering':['./research-labs.html?topic=compiler','Triton 编译：IR / Layout / Mask'],
-  'vllm-scheduler':['./research-expansion.html?topic=scheduler','vLLM：预算、Chunked Prefill 与 KV 限制'],
-  'moe-route':['./research-expansion.html?topic=moe','MoE：Router / EP / Grouped GEMM'],
-  'attention-tiling':['./research-expansion.html?topic=flash','FlashAttention：Online Softmax 分块合并'],
-  'vla-policy':['./research-expansion.html?topic=vla','VLA：异步 Chunk 与动作队列']
- };
- const link=routes[t.id];return link?`<a class="focus-research-entry" href="${link[0]}">研究型深读：${link[1]} ↗</a>`:'';
+/** Mechanism-specific chapters. Course identity and legacy learning records stay stable. */
+import { depthTopics, depthModules, depthById } from "./depth-content.js";
+import { courseNotes } from "./course-notes.js";
+import {
+  chaptersFor,
+  chapterById,
+  resolveChapter,
+} from "./mechanism-curriculum.js";
+import { renderMechanism, defaultLab, esc } from "./mechanism-visuals.js";
+import { renderCodeTour } from "./code-tour-view.js";
+import { chapterEvidence, figureTerms } from "./chapter-evidence.js";
+import { curatedRelations, RELATION_TYPES } from "./semantic-graph.js";
+import {
+  normalizeReaderRecord as legacyNormalize,
+  getReaderCounts,
+  FOCUS_PAGES,
+} from "./legacy-focus-reader.js";
+// These exports describe archived records only, never the new chapter navigation.
+export { getReaderCounts, FOCUS_PAGES };
+export function normalizeReaderRecord(raw = {}, size = 7) {
+  const old = legacyNormalize(raw, size),
+    r = raw.mechanismReading;
+  if (
+    !r ||
+    r.version !== 1 ||
+    typeof r.last !== "string" ||
+    !Array.isArray(r.seen)
+  )
+    return old;
+  const valid = (x) => typeof x === "string" && /^[a-z0-9-]{1,48}$/.test(x);
+  return {
+    ...old,
+    mechanismReading: {
+      version: 1,
+      last: valid(r.last) ? r.last : "",
+      seen: [...new Set(r.seen.filter(valid))].slice(0, 64),
+    },
+  };
 }
-const pageGroup=n=>n<5?'核心学习':n===5?'实现与源码':'性能与实验';
-export function normalizeReaderRecord(raw={},size=7){
- const last=Number.isInteger(raw.readerStep)?raw.readerStep:0;
- const visited=Array.isArray(raw.seenSteps)?raw.seenSteps.filter(n=>Number.isInteger(n)&&n>=0&&n<size):[];
- const visitedSubsteps=Array.isArray(raw.seenSubsteps)?raw.seenSubsteps.filter(n=>Number.isInteger(n)&&n>=0&&n<12):[];
- return {readerStep:Math.max(0,Math.min(size-1,last)),readerSubstep:Math.max(0,Math.min(11,Number.isInteger(raw.readerSubstep)?raw.readerSubstep:0)),seenSteps:[...new Set(visited)],seenSubsteps:[...new Set(visitedSubsteps)]};
+export function chapterProgress(t, rec = {}) {
+  const chapters = chaptersFor(t.id),
+    seen = rec.mechanismReading?.seen || [];
+  return {
+    seen: chapters.filter((c) => seen.includes(c.id)).map((c) => c.id),
+    total: chapters.length,
+  };
 }
-export const getReaderCounts=(r,stageCount=1)=>({core:(r.seenSteps||[]).filter(n=>n>=0&&n<5&& (n!==1||(r.seenSubsteps||[]).length>=stageCount)).length,advanced:(r.seenSteps||[]).filter(n=>n>=5&&n<7).length});
-const crumb=t=>`${depthModules.find(m=>m.id===t.module)?.name||''} / ${t.title}`;
-function compactChart(t,idx=0){const stagesArr=stages(t);const i=Math.min(Math.max(idx,0),stagesArr.length-1);
- return `<div class="focus-mini-chart" aria-label="当前机制流程示意">${stagesArr.map((s,k)=>`<div class="focus-mini-step ${k===i?'is-active':''}"><span>${k+1}</span><strong>${esc(s.title)}</strong></div>${k<stagesArr.length-1?'<span class="focus-mini-arrow" aria-hidden="true">→</span>':''}`).join('')}</div>`;
+const status = (r) =>
+  r.status === "known"
+    ? "自评已掌握"
+    : r.status === "review"
+      ? "待验证"
+      : r.status === "new"
+        ? "未开始"
+        : "学习中";
+function catalog(t, records) {
+  return `<details class="mechanism-catalog"><summary>切换专题</summary><div>${depthModules
+    .map(
+      (m) =>
+        `<section><strong>${esc(m.name)}</strong>${depthTopics
+          .filter((t) => t.module === m.id)
+          .map(
+            (x) =>
+              `<button type="button" data-dtopic="${x.id}" aria-current="${x.id === t.id}">${esc(x.title)}<small>${status(records[x.id] || {})}</small></button>`,
+          )
+          .join("")}</section>`,
+    )
+    .join("")}</div></details>`;
 }
-function getStage(t,idx=0){const s=stages(t)[Math.min(idx,stages(t).length-1)];return has(t.id)?{title:s.title,data:s.in,mechanism:s.do,metric:s.out,trap:s.trap,why:s.why}:s;}
-function scopeDiagram(t){const s=stages(t),first=getStage(t,0),last=getStage(t,s.length-1);
- const start=has(t.id)?first.data:first.data;
- const finish=has(t.id)?(featuredMechanisms[t.id].boundary.split('输出：')[1]||last.metric):last.data;
- return `<div class="focus-boundary-graph" aria-label="输入经过当前机制到输出"><div><small>输入是什么</small><strong>${esc(start)}</strong></div><span aria-hidden="true">→</span><div class="focus-boundary-active"><small>本课机制</small><strong>${esc(has(t.id)?featuredMechanisms[t.id].label:t.title)}</strong></div><span aria-hidden="true">→</span><div><small>得到什么</small><strong>${esc(finish)}</strong></div></div>`;
+const chapterTerms = {
+  "delta-read": ["S", "k / v / q"],
+  "delta-write": ["S", "δ", "β"],
+  "delta-update": ["δ", "β", "k / v / q"],
+  "delta-decay": ["γ", "δ", "S"],
+  "delta-chunk": ["S", "Chunk", "β"],
+  "compiler-mask": ["Mask", "N / IO"],
+  "compiler-ir": ["IR", "TTIR / TTGIR", "PTX", "SASS"],
+  "moe-network": ["EP", "All-to-All", "M_e"],
+  "moe-buckets": ["Top-k", "M_e"],
+  "moe-combine": ["w_te", "E_e(x_t) / y_t"],
+  "softmax-rescale": ["m", "l", "a", "α", "o / ′"],
+  "softmax-tiles": ["m", "l", "a"],
+  "gqa-heads": ["h_q / h_kv", "GQA"],
+  "norm-reduction": ["H", "ε", "γ_i"],
+  "rope-rotation": ["RoPE"],
+  "quant-numberline": ["x / x̂", "s", "q"],
+  "robot-async": ["latency", "trigger", "Action Chunk"],
+  "warp-sets": ["Active", "Eligible", "Issued"],
+};
+function vocabulary(n, ch) {
+  const keys = ch.terms || chapterTerms[ch.figure];
+  const defs =
+    figureTerms[ch.figure] ||
+    (keys ? n.terms.filter(([k]) => keys.includes(k)) : n.terms.slice(0, 3));
+  return `<dl class="mechanism-vocabulary">${defs.map(([term, meaning]) => `<div><dt>${esc(term)}</dt><dd>${esc(meaning)}</dd></div>`).join("")}</dl>`;
 }
-function overview(t){const doc=has(t.id)?featuredMechanisms[t.id]:null;
- return `<div class="focus-content"><div class="focus-question">先回答：这项技术究竟做什么？</div><p class="focus-definition">${esc(doc?.definition||t.summary)}</p>${hasDerivation(t.id)?renderInContext(t.id):`${scopeDiagram(t)}<div class="focus-short-explainer"><div><small>它处理的对象</small><p>${esc(doc?.boundary||t.stage[0].data)}</p></div><div><small>你要带走的认识</small><p>${esc(t.question)}</p></div></div>`}<p class="focus-caution">先记住机制本身。下一步再看每个环节如何运行，不急着背术语或看外链。</p></div>`;
+function testQuestion(n, choice) {
+  const done = Number.isInteger(choice);
+  return `<section class="mechanism-check"><h3>换一个固定条件，检验能否迁移</h3><p>以下题设独立于图上参数；先按题设计算，再查看解释。</p><p>${esc(n.question)}</p><div class="focus-answers">${n.options.map((o, i) => `<button type="button" data-f-answer="${i}" aria-pressed="${choice === i}" class="${done ? (i === n.correct ? "correct" : i === choice ? "wrong" : "") : ""}"><span>${"ABC"[i]}</span>${esc(o)}</button>`).join("")}</div>${done ? `<div class="focus-check-feedback" aria-live="polite"><strong>${choice === n.correct ? "推理与机制一致" : "回到图中核查这项假设"}</strong><p>${esc(n.explain)}</p><button type="button" data-f-retry>重新判断</button></div>` : ""}</section>`;
 }
-function mechanism(t,step=0,variant=0){const s=getStage(t,step),doc=featuredMechanisms[t.id],arr=stages(t);return `<div class="focus-content"><div class="focus-question">${esc(s.title)}：这一步发生了什么？</div><div class="focus-substeps" role="group" aria-label="机制步骤">${arr.map((v,i)=>`<button type="button" data-f-sub="${i}" class="${i===step?'active':''}" aria-pressed="${i===step}">${String(i+1).padStart(2,'0')} ${esc(v.title)}</button>`).join('')}</div>${doc?`${focusScene(t.id,step)}<details id="focusFullDiagram" class="focus-expand focus-full-diagram"><summary>展开完整机制图与另一种视角（可选）</summary><div class="focus-view-toggle">${doc.variants.map((label,i)=>`<button type="button" data-f-variant="${i}" class="${variant===i?'active':''}" aria-pressed="${variant===i}">${esc(label)}</button>`).join('')}</div><div class="focus-figure">${mechanismFigure(t.id,step,variant)}</div></details>`:compactChart(t,step)}<p class="focus-main-explanation">${esc(s.mechanism)}</p><div class="focus-io"><div><small>输入</small><p>${esc(s.data)}</p></div><div><small>输出 / 观测</small><p>${esc(s.metric)}</p></div></div><details class="focus-expand"><summary>为什么这样做？有哪些误区？</summary><p>${esc(s.why||t.insights[0])}</p><p><strong>容易误解：</strong>${esc(s.trap)}</p></details><span class="focus-disclaimer">图为机制教学示意，细节及资源限制取决于具体硬件与软件版本。</span></div>`}
-function example(t,moeToken=0,moeStage='router'){
- if(hasDerivation(t.id))return `<div class="focus-content"><div class="focus-question">这个机制的公式从哪来？用真实数值走一遍。</div>${t.id==='moe-route'?moeDeepDiveHTML(moeToken,moeStage):''}${renderWorkedDerivation(t.id)}<p class="focus-quiet">先对照图与公式，用自己的话从输入推到结果；如果不理解变量，返回本页的变量表，不必跳去外链。</p></div>`;
- const data=visualFor(t),ex=data.sample;
- const specific=has(t.id)?focusScene(t.id,Math.min(2,stages(t).length-1)):compactChart(t,Math.min(1,t.stage.length-1));
- return `<div class="focus-content"><div class="focus-question">换成具体数字或张量，会是什么样？</div><div class="focus-case"><span>一个例子 · ${esc(ex[0])}</span><p>${esc(ex[1])}</p></div>${specific}<div class="focus-counterexample"><small>别因此得出错误结论</small><p>${esc(ex[2])}</p></div><p class="focus-quiet">本专题目前只有导览示例，完整公式推导与执行状态图仍需补足；不应将它视为已完成的深度课程。</p></div>`;
-}
-function checkpoint(t,choice){const q=has(t.id)?featuredMechanisms[t.id].check:{q:t.quiz[0],options:t.quiz[1],correct:t.quiz[2],why:t.quiz[3]};const answered=choice!==null&&choice!==undefined;
- return `<div class="focus-content"><div class="focus-question">如果换个条件，你会怎么判断？</div><h3 class="focus-check-title">${esc(q.q)}</h3><div class="focus-answers">${q.options.map((x,i)=>`<button type="button" data-f-answer="${i}" class="${answered?(i===q.correct?'correct':i===choice?'wrong':''):''}" aria-pressed="${choice===i}"><span>${String.fromCharCode(65+i)}</span>${esc(x)}</button>`).join('')}</div>${answered?`<div class="focus-check-feedback"><strong>${choice===q.correct?'这一步判断正确。':'还需重新理解这个机制。'}</strong><p>${esc(q.why)}</p><button type="button" data-f-retry>重新判断</button></div>`:`<p class="focus-quiet">先自己选择，再看原因。做对一道题不等于已经具备真实工程能力。</p>`}</div>`;
-}
-function recall(t,rec,counts){return `<div class="focus-content"><div class="focus-question">离开这节课之前，只保留三条主线</div><ol class="focus-recall">${points(t).map((x,i)=>`<li><span>${i+1}</span><p>${esc(x)}</p></li>`).join('')}</ol><div class="focus-mark"><div><strong>你的学习状态：${esc(rec.status==='known'?'自评已掌握':rec.status==='review'?'待复习':'学习中')}</strong><small>已浏览核心 ${counts.core}/5 步。浏览和做题不会自动标为“掌握”。</small></div><div><button type="button" data-f-mark="known" class="${rec.status==='known'?'selected':''}">我能复述，标记已掌握</button><button type="button" data-f-mark="review" class="${rec.status==='review'?'selected':''}">还有疑问，待复习</button></div></div><details class="focus-expand focus-notes"><summary>记录还没弄懂的地方</summary><textarea maxlength="2500" id="focusNote" placeholder="写下一个仍需验证的问题……">${esc(rec.note||'')}</textarea></details><p class="focus-quiet">有余力再进入「源码追踪」和「性能验证」；核心课学完后，不必被迫继续翻很多层页面。</p></div>`}
-function sources(t,idx=0){return `<div class="focus-content"><div class="focus-question">这段技术在代码里怎样发生？</div>${renderCodeTour(t,idx)}<p class="focus-quiet">选择伪代码阶段，对照输入、数据变化和输出。真实源码位于可选核对入口；这不是逐函数代码审计。</p></div>`}
-function lab(t){const x=t.experiment;return `<div class="focus-content"><div class="focus-question">如果要验证这个瓶颈，你会怎样设计实验？</div><div class="focus-case"><span>研究问题</span><p>${esc(x.goal)}</p></div><div class="focus-io"><div><small>只改变什么</small><p>${esc(x.controls)}</p></div><div><small>观察什么指标</small><p>${esc(x.metrics)}</p></div></div><div class="focus-counterexample"><small>必须排除的误判</small><p>${esc(x.validation)}</p></div><p class="focus-quiet">这是实验设计，不是已经跑出的 Benchmark。真实结论必须来自正确性检查、可重复测量和性能证据。</p></div>`}
-function catalogStatus(t,record){const r=record||{},n=getReaderCounts(r,stages(t).length).core;return r.status==='known'?'自评已掌握':n===5?'核心已浏览 5/5':n>0?`已看 ${n}/5`:'未开始'}
-function catalog(current,records){return `<details class="focus-catalog" id="focusCatalog"><summary>切换专题 <span>· 六大领域 / ${depthTopics.length} 节</span></summary><div class="focus-catalog-body">${depthModules.map(m=>`<section><strong>${esc(m.name)}</strong><div>${depthTopics.filter(t=>t.module===m.id).map(t=>`<button type="button" data-dtopic="${t.id}" class="${t.id===current?'active':''}">${esc(t.title)}<small>${esc(catalogStatus(t,records[t.id]))}</small></button>`).join('')}</div></section>`).join('')}</div></details>`}
-export function renderFocusReader(t,rec,settings){const pg=settings.readerStep??0,sub=settings.substep??0,variant=settings.variant??0,sourceIndex=settings.sourceIndex??0,answer=settings.answer??null,counts=getReaderCounts(rec,stages(t).length);
- const seen=new Set(rec.seenSteps||[]);const isAdvanced=pg>=5;
- const phase=renderCoursePhase(t,pg,{...settings,answer})??(pg===0?overview(t):pg===1?mechanism(t,sub,variant):pg===2?example(t,settings.moeToken,settings.moeStage):pg===3?checkpoint(t,answer):pg===4?recall(t,rec,counts):pg===5?sources(t,sourceIndex):lab(t));
- const num=pg<5?pg+1:pg===5?1:2;
- const mechanismProgress=(rec.seenSubsteps||[]).length;
- return `<div class="focus-reader" id="focusReader"><div class="focus-utility"><button type="button" data-dmap>← 知识地图</button>${catalog(t.id,settings.records||{})}<button type="button" data-f-reference>参考资料（原版）↗</button></div><header class="focus-header"><div class="focus-header-top"><span>${esc(crumb(t))}</span><span class="focus-status-tag">${esc(rec.status==='known'?'自评已掌握':rec.status==='review'?'待复习':'学习中')}</span></div><h1>${esc(t.title)}</h1><p>本节只聚焦：${esc(courseNotes[t.id]?.objective||t.question)}</p><div class="focus-progress-summary"><span>核心内容已浏览 <b>${counts.core}/5</b>${mechanismProgress?` · 机制 ${Math.min(mechanismProgress,stages(t).length)}/${stages(t).length}`:''}</span><span>当前：${esc(pageGroup(pg))} · ${num}/${pg<5?5:2}</span></div><div class="focus-progressbar" role="progressbar" aria-valuemin="0" aria-valuemax="5" aria-valuenow="${counts.core}"><div style="width:${counts.core/5*100}%"></div></div></header><nav class="focus-step-nav" aria-label="本节学习步骤">${FOCUS_PAGES.map((p,i)=>`<button type="button" data-f-page="${i}" class="${pg===i?'current':''} ${seen.has(i)?'seen':''}" aria-current="${pg===i?'step':'false'}"><small>${seen.has(i)&&(i!==1||mechanismProgress>=stages(t).length)?'✓':String(i+1).padStart(2,'0')}</small><span>${esc(p.label)}</span></button>`).join('')}</nav><main class="focus-panel" id="focusPanel"><div class="focus-panel-heading"><span>${esc(pageGroup(pg))} · ${String(pg+1).padStart(2,'0')}</span><strong>${esc(FOCUS_PAGES[pg].hint)}</strong></div> ${phase}${researchEntry(t)?`<details class="focus-expand course-extra-lab"><summary>继续探索原有专用研究实验（可选）</summary>${researchEntry(t)}</details>`:""}</main><footer class="focus-footer"><button type="button" data-f-prev ${pg===0&&sub===0?'disabled':''}>← 上一步</button><span>${pg<5?'一步一屏，随时可以离开并继续':'进阶部分可跳过'}</span><button type="button" data-f-next>${pg===4?'进入源码（可选）':pg===6?'回到课程核心':pg===1&&sub<stages(t).length-1?'看下一环节 →':'继续 →'}</button></footer><section class="focus-related"><span>还想串联哪些知识？</span>${studioOptions.filter(opt=>opt.topic===t.id).map(opt=>`<button type="button" data-open-studio="${esc(opt.id)}">进入「${esc(opt.title)}」动态图解 →</button>`).join('')}<button type="button" data-knowledge-topic="${esc(t.id)}">在知识网络中查看关系 / 记录我的理解</button>${t.related.slice(0,2).map(id=>`<button type="button" data-dtopic="${id}">${esc(depthById.get(id)?.title||id)} →</button>`).join('')}</section><p class="focus-storage-hint">内容已更新，原浏览记录、自评与笔记保留；旧记录不代表读过新版。✓ 只表示浏览，不代表课程已完成源码审计或设备验证。</p></div>`;
+const chunkFormula = `<math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi>S</mi><mn>2</mn></msub><mo>=</mo><msub><mi>A</mi><mn>2</mn></msub><mo>(</mo><msub><mi>A</mi><mn>1</mn></msub><msub><mi>S</mi><mn>0</mn></msub><mo>+</mo><msub><mi>B</mi><mn>1</mn></msub><mo>)</mo><mo>+</mo><msub><mi>B</mi><mn>2</mn></msub></mrow></math>`;
+export function renderFocusReader(t, rec = {}, settings = {}) {
+  const chapters = chaptersFor(t.id),
+    id =
+      chapterById(t.id, settings.chapter)?.id ||
+      resolveChapter(
+        t.id,
+        rec,
+        settings.readerStep === 5
+          ? "L3"
+          : settings.readerStep === 6
+            ? "L4"
+            : "L2",
+      ),
+    ch = chapterById(t.id, id),
+    idx = chapters.indexOf(ch),
+    n = courseNotes[t.id],
+    progress = chapterProgress(t, rec),
+    lab = { ...defaultLab(), ...(settings.lab || {}) };
+  const evidence = chapterEvidence[`${t.id}/${ch.id}`] || {};
+  const relations = curatedRelations.filter((r) => r.from === t.id || r.to === t.id);
+  const code = ch.code
+    ? `<details class="mechanism-code"><summary>对照此机制的执行骨架与张量边界</summary><p>下段为原创教学伪代码，保留数学依赖；函数名不是框架API或真实设备指令。</p><pre><code>${esc(evidence.code || n.code)}</code></pre>${t.id === "linear-state" ? "<p>实际FLA还包含投影、状态布局和Chunk内部变换。此处矩阵朝向统一为Key×Value；对照源码需核对STATE_V_FIRST。</p>" : ""}<details><summary>核对原有逐阶段实现导读</summary>${renderCodeTour(t, settings.sourceIndex || 0)}</details></details>`
+    : "";
+  return `<article class="focus-reader mechanism-reader" id="focusReader"><div class="mechanism-utility"><button type="button" data-dmap>← 知识地图</button>${catalog(t, settings.records || {})}<details class="mechanism-record"><summary>笔记与学习状态</summary><p>你的自评：<strong>${status(rec)}</strong>。浏览、答题与课程证据质量分别记录。</p><div class="mechanism-record-actions"><button type="button" data-f-mark="known">自评已掌握</button><button type="button" data-f-mark="review">仍需验证</button></div><label for="focusNote">本专题笔记与反馈</label><textarea id="focusNote" maxlength="2500" placeholder="记录疑问、推导或验证证据">${esc(rec.note || "")}</textarea><p>旧进度与笔记保留。新版章节浏览另行记录，旧“已掌握”不自动变更。</p></details></div>
+ <header class="mechanism-course-heading"><p>${esc(depthModules.find((m) => m.id === t.module)?.name)} / ${esc(t.title)}</p><h1>${esc(t.title)}</h1><p>${esc(n.objective)}</p><span>本次章节浏览 ${progress.seen.length}/${progress.total} · ${status(rec)}</span></header>
+ <div class="mechanism-course-layout"><nav class="mechanism-chapters" aria-label="${esc(t.title)}的机制章节">${chapters.map((c, i) => `<button type="button" data-mech-chapter="${c.id}" aria-current="${id === c.id ? "step" : "false"}"><small>${progress.seen.includes(c.id) ? "✓" : String(i + 1).padStart(2, "0")}</small><span>${esc(c.title)}</span></button>`).join("")}</nav>
+ <section class="mechanism-chapter" id="focusPanel" aria-labelledby="mechanismQuestion"><p class="mechanism-position">${idx + 1} / ${chapters.length} · ${esc(ch.title)}</p><h2 id="mechanismQuestion" tabindex="-1">${esc(ch.question)}</h2><p class="mechanism-intro">${esc(ch.explain)}</p><div class="mechanism-lab" data-mechanism="${esc(ch.figure)}">${renderMechanism(ch.figure, lab)}</div>${vocabulary(n, ch)}
+ ${ch.formula || ch.chunkMath ? `<details class="mechanism-math" ${ch.chunkMath ? "open" : ""}><summary>把图中关系写成公式</summary><div class="course-math">${ch.chunkMath ? chunkFormula : n.formula}</div>${ch.chunkMath ? "<p>A是固定输入后的状态线性变换，B是新写入项；下标1/2是Token时间次序，矩阵相乘不能一般性交换。</p>" : `<ol>${n.derive.map((x) => `<li>${esc(x)}</li>`).join("")}</ol>`}</details>` : ""}
+ ${code}${ch.quiz ? testQuestion(n, settings.answer) : ""}
+ <details class="mechanism-source"><summary>本章的依据、适用边界与尚未验证项</summary><p>${esc(evidence.section || n.section)}</p><a href="${esc(evidence.source || n.source)}" target="_blank" rel="noopener">核对一手资料 ↗</a><p>${esc(n.limit)}</p><p>图中数值为可核对教学模型；没有声称完成真实GPU性能、机器人试验或全部源码分支审计。</p></details>
+ <footer class="mechanism-chapter-footer"><button type="button" data-mech-prev ${idx === 0 ? "disabled" : ""}>← ${idx === 0 ? "开篇" : esc(chapters[idx - 1].title)}</button><button type="button" data-mech-next ${idx === chapters.length - 1 ? "disabled" : ""}>${idx === chapters.length - 1 ? "本专题章节结束" : esc(chapters[idx + 1].title) + " →"}</button></footer></section></div>
+ <section class="mechanism-connections"><h2>把这项机制接回系统</h2>${relations
+   .map((r) => {
+     const other = r.from === t.id ? r.to : r.from;
+     return `<button type="button" data-dtopic="${other}"><small>${esc(RELATION_TYPES[r.type]?.label || r.type)} · ${r.from===t.id?'从本专题延伸':'关联本专题的机制'}</small><strong>${esc(depthById.get(other)?.title || other)}</strong><span>${esc(r.why)}</span></button>`;
+   })
+   .join("")}</section></article>`;
 }

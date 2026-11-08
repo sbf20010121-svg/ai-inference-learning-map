@@ -1,5 +1,16 @@
 # AI assistant working rules
 
+## V4 precedence — mechanism chapters (2026-11-08)
+
+用户已明确要求整体重构，禁止把所有专题强制塞入相同五步/七页/四阶段。本节替代下文历史版本中与之冲突的页面数量和独立研究页要求。
+
+- 默认阅读器按`mechanism-curriculum.js`的专题专属章节组织；当前问题内直接呈现对象图、必要术语、公式/实现与可核查证据。章节数量由机制依赖决定。
+- 图由`mechanism-visuals.js`驱动`mechanism-models.js`的计算。颜色、格子、连线、长度须有对象或量纲含义；不靠更多文字框伪装机制。
+- 六个研究实验已并入原课程；旧`research-*.html`保留兼容跳转，禁止恢复平行课程入口。
+- `ai-inference-depth-progress-v1`和版本1备份协议不变。可选`mechanismReading:{version:1,last,seen}`只记录新版章节浏览；旧reader字段、completed、自评、笔记及个人图谱继续保留，不把旧浏览算成新版已读。
+- 新浏览器审计是`scripts/audit-chapters.cjs`及`scripts/audit-gateways.cjs`。前者用独立浏览器合成记录核对全部章节、交互、移动端及备份；禁止加载真实私有学习快照做破坏性测试。
+- 阅读`docs/mechanism-chapters-v4.md`了解实际范围；工程通过不代表完成人类学习效果验证、完整GPU实现或所有源码分支审计。
+
 Before changing code, read this file and the skill that matches the task in `skills/`.
 
 1. **Keep the V1.1 six-module taxonomy intact.** Never redesign the learning taxonomy without explicit user instruction. Preserve six top-level modules: model, engine, compiler, kernel, systems, microarch. vLLM is already familiar to the learner. Add depth through connections and examples rather than re-teaching basics.

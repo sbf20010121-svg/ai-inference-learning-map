@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {derivationIds,getDerivation,hasDerivation,renderInContext,renderWorkedDerivation} from '../site/js/mechanism-derivations.js';
+import {chaptersFor} from '../site/js/mechanism-curriculum.js';
 import {depthTopics} from '../site/js/depth-content.js';
 import {renderFocusReader} from '../site/js/focus-reader.js';
 import {flashStats} from '../site/js/mechanism-studio.js';
@@ -25,17 +26,16 @@ test('11 curated mechanisms directly present explanation, stateful diagram, Math
  assert.equal(hasDerivation('host-runtime'),false);
 });
 
-test('focused reader displays mechanism without navigation to external sources',()=>{
+test('formula and object figure appear together in the relevant mechanism chapter',()=>{
  for(const id of derivationIds){
   const topic=depthTopics.find(t=>t.id===id);
-  const base={readerStep:0,seenSteps:[],seenSubsteps:[],status:'learning'};
-  const settings={records:{}};
-  const intro=renderFocusReader(topic,base,{...settings,readerStep:0});
-  assert.match(intro,/course-content/);
-  assert.match(intro,/course-figure/);
-  const ex=renderFocusReader(topic,base,{...settings,readerStep:2});
-  assert.match(ex,/course-math/);
-  assert.match(ex,/course-derivation/);
+  const chapter=chaptersFor(id).find(c=>c.formula);
+  assert.ok(chapter,id);
+  const html=renderFocusReader(topic,{}, {chapter:chapter.id});
+  assert.match(html,/mechanism-chapter/);
+  assert.match(html,/<figure/);
+  assert.match(html,/course-math/);
+  assert.match(html,/<math /);
  }
 });
 

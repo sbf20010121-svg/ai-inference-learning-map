@@ -1,71 +1,98 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
-import {depthTopics} from '../site/js/depth-content.js';
-import {renderFocusReader,normalizeReaderRecord,getReaderCounts,FOCUS_PAGES} from '../site/js/focus-reader.js';
-import {focusScene} from '../site/js/focus-scenes.js';
-import {featuredMechanismIds} from '../site/js/mechanism-studio.js';
-const html=(id='pd-disagg',pg=0,sub=0)=>renderFocusReader(depthTopics.find(x=>x.id===id),{status:'learning',readerStep:pg,seenSteps:[0],seenSubsteps:[0]}, {readerStep:pg,substep:sub,records:{}});
-
-test('核心学习为五个短步骤，源码和实测独立为可选进阶',()=>{
- assert.deepEqual(FOCUS_PAGES.map(x=>x.label),['先看懂','运行机制','具体例子','自己判断','记住重点','源码追踪','性能验证']);
- for(let n=0;n<7;n++){
-  const v=html('pd-disagg',n);
-  assert.equal((v.match(/class="focus-panel"/g)||[]).length,1);
-  assert.match(v,/<button type="button" data-f-next>/);
-  assert.doesNotMatch(v,/m16-studio/); // full old lesson is opt-in, not upfront
- }
- assert.match(html('pd-disagg',0),/Decode实例/);
- assert.match(html('pd-disagg',1),/data-f-sub="0"/);
- assert.match(html('pd-disagg',4),/浏览和做题不会自动标为/);
- assert.match(html('pd-disagg',5),/核对真实项目：模块与源码入口/);
-});
-
-test('所有深度专题都能直接进入短步骤，而不是只有首页能用',()=>{
- for(const t of depthTopics){
-  for(const page of [0,1,2,3,4,5,6]){
-   const rendered=html(t.id,page);
-   assert.ok(rendered.includes(t.title),t.id);
-   assert.ok(rendered.includes('focus-panel'),`${t.id}/${page}`);
-   assert.ok(rendered.includes('数据')||rendered.includes('判断')||rendered.includes('记住')||rendered.includes('研究')||rendered.includes('运行'),`${t.id}/${page}`);
+import test from "node:test";
+import assert from "node:assert/strict";
+import { depthTopics } from "../site/js/depth-content.js";
+import {
+  chaptersFor,
+  resolveChapter,
+} from "../site/js/mechanism-curriculum.js";
+import {
+  renderFocusReader,
+  normalizeReaderRecord,
+  getReaderCounts,
+  chapterProgress,
+} from "../site/js/focus-reader.js";
+import { figureKinds } from "../site/js/mechanism-visuals.js";
+test("navigation follows each mechanism, not the archived seven-page template", () => {
+  const lists = depthTopics.map((t) => chaptersFor(t.id));
+  assert.ok(new Set(lists.map((a) => a.length)).size > 3);
+  assert.equal(
+    new Set(lists.map((a) => a.map((c) => c.title).join("|"))).size,
+    25,
+  );
+  for (const t of depthTopics) {
+    const chapters = chaptersFor(t.id);
+    assert.equal(new Set(chapters.map((c) => c.id)).size, chapters.length);
+    for (const ch of chapters) {
+      assert.ok(figureKinds.has(ch.figure));
+      const html = renderFocusReader(t, {}, { chapter: ch.id });
+      assert.ok(html.includes(ch.question));
+      assert.ok(html.includes(ch.explain));
+      assert.match(html, /<figure/);
+      assert.match(html, /data-mech-prev/);
+      assert.match(html, /data-mech-next/);
+      assert.match(html, /id="focusNote"/);
+      assert.doesNotMatch(
+        html,
+        /research-(?:labs|expansion)\.html|data-f-page|focus-mini-arrow/,
+      );
+      assert.doesNotMatch(html, /undefined|NaN/);
+    }
   }
- }
+  assert.ok(chaptersFor("linear-state").some((c) => c.id === "triangle"));
+  assert.ok(chaptersFor("compiler-lowering").some((c) => c.id === "layout"));
 });
-
-test('已浏览和已掌握不混淆；机制必须看完全部子步骤才算读过',()=>{
- const p=normalizeReaderRecord({readerStep:3,readerSubstep:2,seenSteps:[0,1,2,2,4,99],seenSubsteps:[0,2]});
- assert.deepEqual(p.seenSteps,[0,1,2,4]);
- assert.deepEqual(p.seenSubsteps,[0,2]);
- assert.equal(getReaderCounts(p,5).core,3); // mechanism incomplete
- assert.equal(getReaderCounts({...p,seenSubsteps:[0,1,2,3,4]},5).core,4);
- assert.equal(normalizeReaderRecord({readerStep:300}).readerStep,6);
+test("old record values survive independently of new chapter visits", () => {
+  const raw = {
+    readerStep: 3,
+    readerSubstep: 2,
+    seenSteps: [0, 1, 2, 2, 4, 99],
+    seenSubsteps: [0, 2],
+  };
+  const old = normalizeReaderRecord(raw);
+  assert.deepEqual(old.seenSteps, [0, 1, 2, 4]);
+  assert.equal(getReaderCounts(old, 5).core, 3);
+  const withNew = normalizeReaderRecord({
+    ...raw,
+    mechanismReading: {
+      version: 1,
+      last: "chunk",
+      seen: ["state", "chunk", "chunk", "<script>"],
+    },
+  });
+  assert.deepEqual(withNew.mechanismReading, {
+    version: 1,
+    last: "chunk",
+    seen: ["state", "chunk"],
+  });
+  for (const k of Object.keys(old)) assert.deepEqual(withNew[k], old[k]);
+  assert.deepEqual(chapterProgress({ id: "linear-state" }, withNew), {
+    seen: ["state", "chunk"],
+    total: 9,
+  });
+  assert.equal(normalizeReaderRecord({ readerStep: 300 }).readerStep, 6);
 });
-
-test('五个优先机制都有逐步专用图，并提供完整机制图可选入口',()=>{
- for(const id of featuredMechanismIds){
-  const t=depthTopics.find(t=>t.id===id);
-  assert.ok(t,id);
-  for(let i=0;i<t.stage.length;i++){
-   const diagram=focusScene(id,i);
-   assert.match(diagram,/focus-scene/);
-   assert.match(diagram,/figcaption/);
-   assert.ok(diagram.length>160,`${id}/${i}`);
+test("legacy depth routes, resume and explicit chapter links resolve deterministically", () => {
+  for (const t of depthTopics) {
+    assert.equal(resolveChapter(t.id), chaptersFor(t.id)[0].id);
+    assert.ok(
+      chaptersFor(t.id).find((c) => c.id === resolveChapter(t.id, {}, "L3"))
+        .code,
+    );
+    assert.ok(
+      chaptersFor(t.id).find((c) => c.id === resolveChapter(t.id, {}, "L4"))
+        .quiz,
+    );
+    const last = chaptersFor(t.id).at(-1).id;
+    assert.equal(resolveChapter(t.id, { mechanismReading: { last } }), last);
+    assert.equal(resolveChapter(t.id, {}, "L3", last), last);
   }
-  const v=html(id,1,0);
-  assert.match(v,/展开完整机制图与另一种视角/);
- }
 });
-
-test('沿用旧进度存储、支持完整参考模式及新阅读器的路由恢复',()=>{
- const src=readFileSync(new URL('../site/js/depth.js',import.meta.url),'utf8');
- const app=readFileSync(new URL('../site/js/app.js',import.meta.url),'utf8');
- const page=readFileSync(new URL('../site/index.html',import.meta.url),'utf8');
- assert.match(src,/ai-inference-depth-progress-v1/);
- assert.match(src,/normalizeReaderRecord/);
- assert.match(src,/resumeDepthHash/);
- assert.match(src,/readerSubstep/);
- assert.match(src,/data-f-reference/);
- assert.match(src,/renderFocusReader/);
- assert.match(app,/resumeDepthHash\(\)/);
- assert.match(page,/focus\.css/);
+test("private note content is escaped and never changes self-assessment", () => {
+  const html = renderFocusReader(depthTopics[0], {
+    status: "known",
+    note: "<img src=x onerror=alert(1)>",
+  });
+  assert.match(html, /&lt;img/);
+  assert.doesNotMatch(html, /<img src=x/);
+  assert.match(html, /自评已掌握/);
 });

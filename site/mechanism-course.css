@@ -1,0 +1,1089 @@
+/* V4: topic-specific chapters, object-first figures, semantic identities. */
+.mechanism-reader {
+  max-width: 1180px;
+}
+.mech-probability {
+  display: grid;
+  gap: 14px;
+  margin: 20px 0;
+}
+.mech-probability > div {
+  display: grid;
+  gap: 6px;
+}
+.mech-probability span {
+  display: block;
+  background: var(--primary-soft);
+  border-left: 3px solid var(--primary);
+  padding: 7px;
+  min-width: 60px;
+}
+.mechanism-reader * {
+  min-width: 0;
+}
+.mechanism-utility {
+  display: flex;
+  align-items: start;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+.mechanism-utility > button,
+.mechanism-utility summary {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 14px;
+  cursor: pointer;
+}
+.mechanism-catalog,
+.mechanism-record {
+  position: relative;
+}
+.mechanism-catalog > div,
+.mechanism-record[open] {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 18px;
+  border-radius: 10px;
+}
+.mechanism-catalog > div {
+  position: absolute;
+  top: 48px;
+  left: 0;
+  z-index: 24;
+  width: min(660px, calc(100vw - 42px));
+  max-height: 70vh;
+  overflow: auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  box-shadow: var(--lift);
+}
+.mechanism-catalog:not([open]) > div {
+  display: none;
+}
+.mechanism-catalog section {
+  display: grid;
+  gap: 7px;
+}
+.mechanism-catalog button {
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  padding: 8px;
+  border-radius: 5px;
+  font-size: 14px;
+}
+.mechanism-catalog button:hover {
+  background: var(--primary-soft);
+}
+.mechanism-catalog small {
+  font-size: 12px;
+  color: var(--muted);
+}
+.mechanism-record {
+  margin-left: auto;
+}
+.mechanism-record[open] {
+  width: min(560px, 100%);
+  display: grid;
+  gap: 12px;
+}
+.mechanism-record p {
+  font-size: 14px;
+  line-height: 1.8;
+}
+.mechanism-record textarea {
+  display: block;
+  width: 100%;
+  min-height: 130px;
+  background: var(--surface3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--ink);
+  padding: 12px;
+  font: inherit;
+}
+.mechanism-record-actions {
+  display: flex;
+  gap: 10px;
+  margin: 12px 0;
+}
+.mechanism-record button {
+  padding: 9px 12px;
+  background: var(--surface3);
+  border: 1px solid var(--border);
+  color: var(--ink);
+  border-radius: 7px;
+}
+.mechanism-course-heading {
+  padding: 0 0 25px;
+  display: grid;
+  gap: 12px;
+}
+.mechanism-course-heading > p:first-child {
+  font-size: 13px;
+  color: var(--muted);
+}
+.mechanism-course-heading h1 {
+  font-size: clamp(24px, 3vw, 34px);
+}
+.mechanism-course-heading > p {
+  font-size: 16px;
+  line-height: 1.8;
+  max-width: 78ch;
+}
+.mechanism-course-heading > span {
+  font-size: 13px;
+  color: var(--muted);
+}
+.mechanism-course-layout {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+.mechanism-chapters {
+  display: grid;
+  gap: 6px;
+  position: sticky;
+  top: 96px;
+  max-height: calc(100vh - 120px);
+  overflow: auto;
+  padding: 4px 0;
+}
+.mechanism-chapters button {
+  display: flex;
+  gap: 10px;
+  text-align: left;
+  padding: 12px 11px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.mechanism-chapters button small {
+  font-size: 12px;
+  min-width: 20px;
+}
+.mechanism-chapters [aria-current="step"] {
+  background: var(--primary-soft);
+  color: var(--ink);
+  border-color: var(--border);
+}
+.mechanism-chapter {
+  display: grid;
+  gap: 20px;
+  background: var(--surface);
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  min-width: 0;
+}
+.mechanism-position {
+  font-size: 13px;
+  color: var(--primary);
+}
+.mechanism-chapter h2 {
+  font-size: clamp(21px, 2.2vw, 27px);
+  line-height: 1.5;
+}
+.mechanism-intro {
+  font-size: 16px;
+  line-height: 1.9;
+  max-width: 80ch;
+}
+.mechanism-lab {
+  display: grid;
+  gap: 13px;
+  max-width: 100%;
+  min-width: 0;
+}
+.mechanism-vocabulary {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 22px;
+}
+.mechanism-vocabulary > div {
+  flex: 1 1 200px;
+}
+.mechanism-vocabulary dt {
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--primary);
+}
+.mechanism-vocabulary dd {
+  margin: 4px 0 0;
+  font-size: 14px;
+  line-height: 1.8;
+}
+.mechanism-chapter details {
+  border-top: 1px solid var(--border);
+  padding-top: 13px;
+  line-height: 1.8;
+  font-size: 14px;
+}
+.mechanism-chapter summary {
+  cursor: pointer;
+  font-weight: 550;
+}
+.mechanism-chapter details p,
+.mechanism-chapter details pre,
+.mechanism-chapter details ol {
+  margin-top: 12px;
+}
+.mechanism-chapter details ol {
+  padding-left: 22px;
+}
+.mechanism-code pre,
+.mech-code {
+  white-space: pre;
+  max-width: 100%;
+  overflow: auto;
+  padding: 15px;
+  font-size: 14px;
+  line-height: 1.85;
+  background: var(--surface3);
+  border-radius: 7px;
+  color: var(--ink);
+}
+.mechanism-check {
+  display: grid;
+  gap: 16px;
+}
+.mechanism-check > p {
+  font-size: 16px;
+  line-height: 1.85;
+}
+.mechanism-chapter-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
+}
+.mechanism-chapter-footer button {
+  font-size: 14px;
+  line-height: 1.6;
+  padding: 11px 14px;
+  background: var(--surface3);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  max-width: 49%;
+  white-space: normal;
+}
+.mechanism-chapter-footer button:last-child {
+  background: var(--primary);
+  color: var(--surface);
+}
+.mechanism-connections {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 12px;
+}
+.mechanism-connections h2 {
+  font-size: 18px;
+}
+.mechanism-connections button {
+  display: grid;
+  gap: 7px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  color: var(--ink);
+  padding: 10px 0;
+  font-size: 14px;
+  line-height: 1.8;
+}
+.mechanism-connections button strong {
+  color: var(--primary);
+}
+.mech-control {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.mech-control legend {
+  float: left;
+  margin-right: 10px;
+  font-size: 13px;
+  color: var(--muted);
+  padding: 9px 0;
+}
+.mech-control button {
+  min-height: 40px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 14px;
+}
+.mech-control button[aria-pressed="true"] {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+}
+.mech-figure {
+  display: grid;
+  gap: 18px;
+  margin: 0;
+  background: var(--surface3);
+  padding: 18px;
+  border-radius: 10px;
+  max-width: 100%;
+  min-width: 0;
+}
+.mech-figure > figcaption {
+  font-size: 14px;
+  line-height: 1.85;
+  color: var(--muted);
+}
+.mech-figure h3 {
+  font-size: 15px;
+}
+.mech-matrix-row {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  align-items: start;
+  justify-content: center;
+}
+.mech-matrix {
+  margin: 0;
+  max-width: 100%;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+.mech-matrix figcaption {
+  font-size: 14px;
+  line-height: 1.7;
+}
+.mech-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--n), minmax(35px, 1fr));
+  gap: 4px;
+  max-width: 100%;
+  overflow: auto;
+}
+.mech-grid > span {
+  min-width: 35px;
+  min-height: 39px;
+  padding: 8px;
+  display: grid;
+  place-items: center;
+  background: var(--primary-soft);
+  color: var(--ink);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+.mech-grid small {
+  font-size: 10px;
+  opacity: 0.65;
+}
+.mech-grid .zero {
+  opacity: 0.45;
+}
+.mech-grid .selected {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+.mech-matrix.counter .mech-grid > span {
+  background: color-mix(in srgb, var(--primary) 10%, var(--surface));
+}
+.mech-equation {
+  font:
+    16px/1.9 ui-monospace,
+    monospace;
+  overflow-wrap: anywhere;
+}
+.mech-metrics {
+  display: flex;
+  gap: 14px 22px;
+  flex-wrap: wrap;
+  margin: 0;
+}
+.mech-metrics > div {
+  flex: 1 1 130px;
+  display: grid;
+  gap: 6px;
+}
+.mech-metrics dt {
+  font-size: 13px;
+  color: var(--muted);
+}
+.mech-metrics dd {
+  font-size: 18px;
+  line-height: 1.5;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+.mech-array {
+  display: grid;
+  gap: 8px;
+}
+.mech-array > strong {
+  font-size: 14px;
+  font-weight: 550;
+}
+.mech-array > div {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.mech-array span {
+  padding: 8px 11px;
+  min-height: 40px;
+  background: var(--primary-soft);
+  font-size: 14px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  border-radius: 4px;
+  overflow-wrap: anywhere;
+}
+.mech-array small {
+  font-size: 10px;
+  opacity: 0.6;
+}
+.mech-result {
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--primary);
+}
+.mech-scroll {
+  overflow: auto;
+  max-width: 100%;
+  scrollbar-width: thin;
+}
+.mech-svg {
+  display: block;
+  width: 100%;
+  min-width: min(var(--figure-width), 520px);
+  max-width: none;
+  fill: none;
+  color: var(--ink);
+  stroke: var(--muted);
+  stroke-width: 1.3;
+}
+.mech-svg text {
+  font:
+    14px "Microsoft YaHei",
+    sans-serif;
+  fill: var(--ink);
+  stroke: none;
+}
+.mech-svg text.tiny {
+  font-size: 12px;
+}
+.mech-svg .grid {
+  stroke: var(--border);
+}
+.mech-svg .data-edge {
+  stroke: var(--primary);
+  stroke-width: 2;
+}
+.mech-svg .old-vector {
+  stroke: var(--muted);
+  stroke-width: 2;
+}
+.mech-svg .new-vector {
+  stroke: var(--primary);
+  stroke-width: 4;
+}
+.mech-svg .reference {
+  stroke-dasharray: 5 5;
+  stroke: var(--muted);
+}
+.mech-svg .unit-circle {
+  stroke: var(--border);
+}
+.mech-svg .source-dot {
+  fill: var(--surface);
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+.mech-svg .error-edge {
+  stroke: var(--primary);
+  stroke-width: 3;
+}
+.mech-svg .operation {
+  fill: var(--surface);
+  stroke: var(--primary);
+  stroke-width: 2;
+}
+.mech-svg .input,
+.mech-svg .expert {
+  fill: var(--surface);
+  stroke: var(--border);
+}
+.series-a,
+.mech-svg .series-a {
+  fill: var(--primary);
+  background: var(--primary-soft);
+  stroke: none;
+}
+.series-b,
+.mech-svg .series-b {
+  fill: var(--muted);
+  background: var(--surface2);
+  stroke: none;
+}
+.mech-svg .bad {
+  fill: var(--ink);
+  stroke: none;
+}
+.owner-0,
+.token-0 {
+  fill: #78b6c9;
+  background: color-mix(in srgb, #78b6c9 24%, var(--surface));
+}
+.owner-1,
+.token-1 {
+  fill: #dbad63;
+  background: color-mix(in srgb, #dbad63 24%, var(--surface));
+}
+.owner-2,
+.token-2 {
+  fill: #9b96ca;
+  background: color-mix(in srgb, #9b96ca 24%, var(--surface));
+}
+.owner-3,
+.token-3 {
+  fill: #79b69c;
+  background: color-mix(in srgb, #79b69c 24%, var(--surface));
+}
+.mech-svg .route {
+  fill: none;
+  stroke-width: 1.3;
+  opacity: 0.2;
+}
+.mech-svg .route.remote {
+  stroke-dasharray: 6 4;
+}
+.mech-svg .route.chosen {
+  opacity: 1;
+  stroke-width: 3;
+}
+.token-stroke-0 {
+  stroke: #4394ad;
+}
+.token-stroke-1 {
+  stroke: #b5843a;
+}
+.token-stroke-2 {
+  stroke: #8b82be;
+}
+.token-stroke-3 {
+  stroke: #4c9d7f;
+}
+.mech-buffers {
+  display: grid;
+  gap: 12px;
+}
+.mech-buffers section {
+  padding: 12px;
+  border: 1px solid var(--border);
+}
+.mech-buffers section.onchip {
+  border-style: dashed;
+}
+.mech-buffers section > small {
+  font-size: 13px;
+  color: var(--muted);
+  display: block;
+  margin-top: 8px;
+}
+.mech-mask {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.mech-mask > div {
+  display: grid;
+  gap: 4px;
+  text-align: center;
+  padding: 9px;
+  background: var(--primary-soft);
+}
+.mech-mask .masked {
+  background: var(--border);
+  opacity: 0.7;
+}
+.mech-mask small,
+.mech-mask span {
+  font-size: 12px;
+}
+.mech-ir-scale {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.mech-ir-scale span {
+  font-size: 13px;
+  color: var(--muted);
+}
+.mech-ir-scale .current {
+  font-weight: 700;
+  color: var(--primary);
+}
+.mech-budget {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.mech-budget > span {
+  flex: 0 0 32px;
+  min-height: 37px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  font-size: 14px;
+}
+.request-A {
+  background: color-mix(in srgb, #78b6c9 25%, var(--surface));
+}
+.request-B {
+  background: color-mix(in srgb, #dbad63 25%, var(--surface));
+}
+.request-C {
+  background: color-mix(in srgb, #9b96ca 25%, var(--surface));
+}
+.unused {
+  background: var(--border);
+  color: var(--muted);
+}
+.mech-budget-line {
+  display: grid;
+  gap: 7px;
+}
+.mech-budget-line small {
+  font-size: 13px;
+  color: var(--muted);
+}
+.mech-request-state {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.mech-request-state > div {
+  padding: 13px;
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+.mech-experts {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.mech-experts > section {
+  flex: 1 1 140px;
+}
+.mech-experts .mech-matrix {
+  margin: 12px 0;
+}
+.mech-experts small {
+  font-size: 13px;
+  line-height: 1.8;
+}
+.mech-kv-map {
+  display: grid;
+  gap: 22px;
+}
+.mech-kv-map h3 {
+  margin-bottom: 12px;
+}
+.mech-kv-logical {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+}
+.mech-kv-logical button {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 9px 18px;
+  border-radius: 6px;
+  font-size: 14px;
+}
+.mech-kv-logical small {
+  font-size: 12px;
+}
+.mech-kv-pool {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.mech-kv-pool > div {
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+.mech-kv-pool strong {
+  font-size: 14px;
+}
+.mech-kv-pool small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.mech-kv-pool > div > div {
+  display: flex;
+  gap: 3px;
+}
+.mech-kv-pool span {
+  flex: 1;
+  text-align: center;
+  font-size: 12px;
+  background: var(--border);
+  padding: 5px 0;
+}
+.mech-kv-pool .filled {
+  background: var(--primary-soft);
+}
+.mech-kv-pool .shared {
+  border-style: dashed;
+}
+.mech-kv-map .chosen {
+  outline: 2px solid var(--primary);
+}
+.mech-softmax-read {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.mech-softmax-read span {
+  padding: 12px;
+  background: var(--border);
+  font-size: 14px;
+}
+.mech-softmax-read .read {
+  background: var(--primary-soft);
+}
+.mech-contribution {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.mech-contribution > div {
+  flex: 1 1 180px;
+}
+.mech-contribution strong {
+  font-size: 14px;
+}
+.mech-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  max-width: 300px;
+}
+.mech-tile-grid span {
+  text-align: center;
+  padding: 8px;
+  font-size: 13px;
+}
+.mech-timeline {
+  display: grid;
+  gap: 13px;
+  min-width: 0;
+}
+.mech-time-axis,
+.mech-time-row {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+.mech-time-axis {
+  font-size: 11px;
+  color: var(--muted);
+  min-height: 25px;
+}
+.mech-time-axis > div {
+  position: relative;
+  height: 20px;
+  margin-right: 8px;
+}
+.mech-time-axis small {
+  position: absolute;
+  top: 0;
+  font-size: 10px;
+  transform: translateX(-50%);
+}
+.mech-time-row > strong {
+  font-size: 13px;
+  font-weight: 550;
+}
+.mech-time-row > div {
+  height: 38px;
+  position: relative;
+  background: var(--border);
+}
+.mech-time-row span {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  padding: 9px 2px;
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 12px;
+  text-align: center;
+  background: var(--primary-soft);
+  border-right: 2px solid var(--surface3);
+}
+.mech-time-row .compute {
+  background: color-mix(in srgb, #79b69c 30%, var(--surface));
+}
+.mech-time-row .waiting,
+.mech-time-row .bad {
+  background: color-mix(in srgb, #dbad63 30%, var(--surface));
+}
+.mech-bit-fields {
+  display: flex;
+}
+.mech-bit-fields span {
+  padding: 18px 24px;
+  background: var(--primary-soft);
+  border-right: 3px solid var(--surface3);
+}
+.mech-bit-fields span:nth-child(2) {
+  flex: 2;
+  background: var(--surface2);
+}
+.mech-video-frames {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.mech-video-frames section {
+  display: grid;
+  gap: 6px;
+}
+.mech-video-frames section > div {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+}
+.mech-video-frames span {
+  padding: 10px;
+  font-size: 13px;
+}
+.mech-warp-grid {
+  display: grid;
+  gap: 5px;
+  overflow: auto;
+}
+.mech-warp-grid > div {
+  display: grid;
+  grid-template-columns: 85px repeat(8, minmax(55px, 1fr));
+  gap: 3px;
+  min-width: 560px;
+}
+.mech-warp-grid span,
+.mech-warp-grid strong {
+  font-size: 12px;
+  padding: 9px 5px;
+  min-height: 36px;
+  background: var(--surface2);
+}
+.mech-warp-grid .issued {
+  background: var(--primary-soft);
+}
+.mech-set-figure > div {
+  padding: 18px;
+  border: 1px solid var(--border);
+}
+.mech-set-figure > div > div {
+  padding: 16px;
+  margin: 12px 0 0 25px;
+  background: var(--surface2);
+}
+.mech-set-figure > div > div > div {
+  padding: 12px;
+  margin: 12px 0 0 30px;
+  background: var(--primary-soft);
+}
+.mech-ring,
+.mech-handoff {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.mech-ring > div {
+  padding: 18px;
+  border-radius: 50%;
+  width: 160px;
+  height: 160px;
+  display: grid;
+  align-content: center;
+  text-align: center;
+  gap: 8px;
+}
+.mech-ring small {
+  font-size: 12px;
+}
+.mech-handoff > section {
+  flex: 1 1 180px;
+}
+@media (max-width: 850px) {
+  .mechanism-course-layout {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  .mechanism-chapters {
+    position: static;
+    display: flex;
+    overflow-x: auto;
+    max-height: none;
+    padding-bottom: 8px;
+  }
+  .mechanism-chapters button {
+    flex: 0 0 auto;
+    max-width: 180px;
+  }
+  .mechanism-course-heading {
+    padding-bottom: 15px;
+  }
+  .mechanism-chapter {
+    padding: 20px;
+  }
+  .mechanism-record {
+    margin-left: 0;
+  }
+}
+@media (max-width: 500px) {
+  .mechanism-chapter {
+    padding: 16px 12px;
+    gap: 17px;
+  }
+  .mechanism-intro {
+    font-size: 15px;
+  }
+  .mech-figure {
+    padding: 12px;
+  }
+  .mech-matrix-row {
+    justify-content: start;
+    gap: 14px;
+  }
+  .mech-kv-pool {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .mechanism-catalog > div {
+    left: -130px;
+    grid-template-columns: 1fr;
+  }
+  .mech-control legend {
+    width: 100%;
+    padding-bottom: 0;
+  }
+  .mech-control button {
+    min-height: 44px;
+  }
+  .mech-time-row,
+  .mech-time-axis {
+    grid-template-columns: 62px minmax(0, 1fr);
+    gap: 5px;
+  }
+  .mech-time-row > strong {
+    font-size: 12px;
+  }
+  .mech-time-row span {
+    font-size: 10px;
+    padding: 10px 0;
+  }
+  .mech-metrics dd {
+    font-size: 17px;
+  }
+  .mech-grid > span {
+    min-width: 32px;
+    padding: 6px;
+  }
+  .mechanism-utility {
+    gap: 8px;
+  }
+  .mechanism-utility > button,
+  .mechanism-utility summary {
+    font-size: 12px;
+    padding: 10px;
+  }
+  .mechanism-vocabulary > div {
+    flex-basis: 150px;
+  }
+  .mechanism-chapter-footer {
+    gap: 8px;
+  }
+  .mechanism-chapter-footer button {
+    font-size: 12px;
+    padding: 10px;
+  }
+  .mech-svg {
+    min-width: min(var(--figure-width), 480px);
+  }
+}
+
+:root[data-theme="dark"] .topbar .button.subtle {
+  background: var(--surface2);
+  color: var(--ink);
+}
+.mech-svg .owner-0,
+.mech-svg .token-0 {
+  fill: color-mix(in srgb, #78b6c9 25%, var(--surface));
+  stroke: #78b6c9;
+}
+.mech-svg .owner-1,
+.mech-svg .token-1 {
+  fill: color-mix(in srgb, #dbad63 25%, var(--surface));
+  stroke: #dbad63;
+}
+.mech-svg .owner-2,
+.mech-svg .token-2 {
+  fill: color-mix(in srgb, #9e95c8 25%, var(--surface));
+  stroke: #9e95c8;
+}
+.mech-svg .owner-3,
+.mech-svg .token-3 {
+  fill: color-mix(in srgb, #78b69f 25%, var(--surface));
+  stroke: #78b69f;
+}
+.mech-svg .series-a {
+  fill: color-mix(in srgb, var(--primary) 22%, var(--surface));
+  stroke: var(--primary);
+}
+.mech-svg .series-b {
+  fill: var(--surface2);
+  stroke: var(--muted);
+}
+
+.mech-timeline {
+  min-width: 620px;
+}
+.mech-svg .owner-line-0 {
+  stroke: #78b6c9;
+}
+.mech-svg .owner-line-1 {
+  stroke: #dbad63;
+}
