@@ -1,3 +1,13 @@
+## 第二批研究型课程（2026-11-08 · 分批重构中）
+
+在原有六大领域、课程节点和进度记录不变的前提下，新增四节[以机制状态为核心的研究课](site/research-expansion.html)：[vLLM Scheduler](site/research-expansion.html?topic=scheduler)、[MoE / EP](site/research-expansion.html?topic=moe)、[FlashAttention](site/research-expansion.html?topic=flash)、[VLA 异步推理](site/research-expansion.html?topic=vla)。
+
+四节均具有可重放对象/数据图、就地术语解释、公式、伪代码与“条件改变后判断”的练习。与第一批 [Gated DeltaNet / Triton](site/research-labs.html) 形成六条研究型链路。其余课程仍需按相同标准逐个深化，不能把导航、伪代码概览计入研究完成。详细假设、核对来源和边界在 [docs/research-expansion.md](docs/research-expansion.md)。
+
+**此处的数值/时间线为教学模型，未声称有 vLLM 生产 Trace、B200 实测或真实机器人控制实验；个人学习笔记继续只存私有仓库。**
+
+---
+
 ## 研究型课程样板（2026-11-08，先验证质量再扩展）
 
 新页面：[线性注意力 Gated DeltaNet](site/research-labs.html?topic=linear) / [Triton 编译与 IR](site/research-labs.html?topic=compiler)。已直接从旧课程 `linear-state` 与 `compiler-lowering` 进入；**六大模块、原课程 ID 和进度不变**。
