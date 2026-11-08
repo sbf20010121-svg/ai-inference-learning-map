@@ -71,3 +71,8 @@ Read `skills/cloud-sync-security/SKILL.md` and `docs/cloud-sync-setup.md` before
 
 ## Research-first prototype policy (2026-11-08)
 Before expanding other lessons, read `skills/research-lesson/SKILL.md` and `docs/research-course-notes.md`. Do not turn a conceptual node into a generic template and call it deep. Preserve the two prototypes in `site/research-labs.html`, verify every calculation against `site/js/research-models.js`, and keep IR snippets explicitly marked as illustrations unless built from a real captured dump. Browser progress and private cloud synchronization must remain unchanged by entering/leaving the research pages.
+
+
+## V3 全站机制课程维护
+
+默认阅读器使用 `course-notes.js`、`course-models.js`、`course-assessments.js`、`course-reader.js`。先阅读 `docs/course-refactor-audit.md`，保留逐节点未覆盖范围。每个模型必须有可观察的双条件差异和数学/状态不变量；不可仅靠字段数量验收。原专用研究页、旧资料模式和全部学习存储继续保留。新模型不得写localStorage、调用同步服务或将自评升级为课程质量认证。浏览器脚本使用独立上下文及合成笔记；不得拿真实用户学习数据做破坏性测试。

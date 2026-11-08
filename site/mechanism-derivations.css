@@ -81,7 +81,7 @@
  body:has(#focusReader) .brand-name strong{font-size:13px}
  body:has(#focusReader) .brand-name span{display:none}
  body:has(#focusReader) .top-actions{gap:5px}
- body:has(#focusReader) .top-actions .version,body:has(#focusReader) #importBtn,body:has(#focusReader) #exportBtn{display:none}
+ body:has(#focusReader) .top-actions .version{display:none}
  .focus-utility{margin:0 0 8px}
  .focus-utility [data-f-reference]{display:none}
  .focus-header{padding:12px 12px 10px}

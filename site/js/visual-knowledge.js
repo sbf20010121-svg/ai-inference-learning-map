@@ -1,3 +1,4 @@
+import {courseNotes} from './course-notes.js';
 /**
  * V1.5｜中文图解知识层。内容直接出现在专题页：不依赖外部文章才能理解基本机制。
  * 所有图为教学结构图，非 NVIDIA / vLLM 内部真实布线或周期级仿真。
@@ -186,3 +187,9 @@ export const illustrated = {
     remember:['先确认框架功能边界。','对比必须对齐后端与测试负载。','在线 P99 和失败率不能用 Offline 峰值替代。']
   }
 };
+
+// Reference-mode summaries share the reviewed definitions; legacy examples remain opt-in.
+for (const [id, note] of Object.entries(courseNotes)) {
+  illustrated[id].key = note.definition;
+  illustrated[id].sample = ['可核对的教学推导', note.derive.join(' '), note.limit];
+}

@@ -9,6 +9,7 @@ import {visualHTML,inlineImplementation,handleVisualClick,validateVisualKnowledg
 import {handleMechanismStudioClick,featuredMechanismIds,featuredMechanisms} from './mechanism-studio.js';
 import {renderFocusReader,normalizeReaderRecord} from './focus-reader.js';
 import {renderCodeTour} from './code-tour-view.js';
+import {courseStages} from './course-reader.js';
 validateDepthData();
 validateVisualKnowledge(depthTopics);
 const $=(selector,root=document)=>root.querySelector(selector);
@@ -61,10 +62,11 @@ function handleFocusClick(el){
  if(el.hasAttribute('data-f-reference')){state.focusMode='reference';try{localStorage.setItem(MODE_STORE,'reference')}catch{}renderDepthAtlas();window.scrollTo({top:0,behavior:'instant'});return true}
  if(el.hasAttribute('data-f-focus')){state.focusMode='focus';try{localStorage.setItem(MODE_STORE,'focus')}catch{}showFocus();return true}
  if(state.focusMode!=='focus')return false;
+ if(el.hasAttribute('data-course-scenario')){state.variant=Number(el.dataset.courseScenario);showFocus();return true}
  if(state.topic==='moe-route'&&el.hasAttribute('data-moe-token')){state.moeToken=Number(el.dataset.moeToken);showFocus();return true}
   if(state.topic==='moe-route'&&el.hasAttribute('data-moe-stage')){state.moeStage=el.dataset.moeStage;showFocus();return true}
   if(el.hasAttribute('data-f-page')){setFocusPage(Number(el.dataset.fPage));return true}
- if(el.hasAttribute('data-f-next')){if(state.readerStep===1&&state.substep<(featuredMechanisms[state.topic]?.steps.length||current().stage.length)-1){state.substep++;markCurrentSeen();showFocus()}else{setFocusPage(state.readerStep===6?0:state.readerStep+1)}return true}
+ if(el.hasAttribute('data-f-next')){if(state.readerStep===1&&state.substep<courseStages(state.topic).length-1){state.substep++;markCurrentSeen();showFocus()}else{setFocusPage(state.readerStep===6?0:state.readerStep+1)}return true}
  if(el.hasAttribute('data-f-prev')){if(state.readerStep===1&&state.substep>0){state.substep--;markCurrentSeen();showFocus()}else if(state.readerStep>0){setFocusPage(state.readerStep-1)}return true}
  if(el.hasAttribute('data-f-sub')){state.substep=Number(el.dataset.fSub);markCurrentSeen();showFocus();return true}
  if(el.hasAttribute('data-f-variant')){state.variant=Number(el.dataset.fVariant);showFocus();const details=$('#focusFullDiagram');if(details)details.open=true;return true}
