@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {schedulerRounds,moeRoutes,combineExample,flashSteps,directAttention,robotTimeline,validateResearchModels} from '../site/js/research-expansion-model.js';
+const raw=readFileSync(new URL('../site/research-expansion.html',import.meta.url),'utf8');
+const ui=readFileSync(new URL('../site/js/research-expansion.js',import.meta.url),'utf8');
+test('four distinct high-value lessons, each with fixed knowledge graph links',()=>{assert.equal((raw.match(/data-topic="/g)||[]).length,4);for(const id of ['scheduler','moe','flash','vla'])assert.ok(raw.includes(`data-topic="${id}"`));assert.match(ui,/sources:\[/);});
+test('scheduler budget tracked and chunked prefill continues correctly',()=>{const rr=schedulerRounds(8);assert.equal(rr[0].used,8);assert.equal(rr[0].chosen.map(x=>x.n).join(','),'1,6,1');assert.equal(rr[0].remaining.C,3);assert.equal(rr[1].remaining.C,0);assert.ok(schedulerRounds(5).every(x=>x.used<=5));});
+test('MoE routes normalize and grouped workload has unequal expert rows; EP movements are activation-bound',()=>{const d=moeRoutes();assert.equal(d.buckets.map(x=>x.tokens.length).join(','),'2,3,3');assert.equal(d.transfers.length,5);for(let t=0;t<4;t++){const x=combineExample(t);assert.ok(Math.abs(x.weights.reduce((a,b)=>a+b,0)-1)<1e-12);assert.ok(Number.isFinite(x.sum));}});
+test('online softmax outputs equal direct full normalization and rescales old stats',()=>{const d=flashSteps();assert.ok(Math.abs(d.at(-1).out-directAttention())<1e-12);assert.ok(d[2].alpha>0&&d[2].alpha<1);});
+test('asynchronous robot action queue hides waiting only when enough lead time',()=>{const s=robotTimeline(false,4),a=robotTimeline(true,4),late=robotTimeline(true,6);assert.ok(a.waits<s.waits);assert.ok(late.waits>=a.waits);assert.equal(validateResearchModels(),true);});
+test('glossaries are present, zero external JS dependencies and MathML is rendered',()=>{assert.match(ui,/Token Budget/);assert.match(ui,/Grouped GEMM/);assert.match(ui,/alpha/);assert.match(ui,/Policy Server/);assert.match(ui,/<math display=/);assert.doesNotMatch(raw,/https?:\/\/[^" ]+\.js/);});
