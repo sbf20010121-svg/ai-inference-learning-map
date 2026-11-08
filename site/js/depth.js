@@ -18,7 +18,7 @@ const DEPTH_STORE='ai-inference-depth-progress-v1';
 const RESUME_STORE='ai-inference-last-topic-v1';
 const MODE_STORE='ai-inference-reader-mode-v1';
 const LEVELS=['L2','L3','L4'];
-const state={topic:'pd-disagg',level:'L2',stage:0,choice:null,query:'',route:'deploy',progress:load(),controlCache:{},focusMode:loadMode(),readerStep:0,substep:0,variant:0,sourceIndex:0,focusAnswer:null};
+const state={topic:'pd-disagg',level:'L2',stage:0,choice:null,query:'',route:'deploy',progress:load(),controlCache:{},focusMode:loadMode(),readerStep:0,substep:0,variant:0,sourceIndex:0,focusAnswer:null,moeToken:0,moeStage:'router'};
 function loadMode(){try{return localStorage.getItem(MODE_STORE)==='reference'?'reference':'focus'}catch{return 'focus'}}
 export function resumeDepthHash(){try{const id=localStorage.getItem(RESUME_STORE);return 'depth/'+(id&&depthById.has(id)?id:'pd-disagg')+'/L2'}catch{return 'depth/pd-disagg/L2'}}
 function load(){try{return cleanProgress(JSON.parse(localStorage.getItem(DEPTH_STORE)||'{}'))}catch{return {}}}
@@ -51,7 +51,9 @@ function handleFocusClick(el){
  if(el.hasAttribute('data-f-reference')){state.focusMode='reference';try{localStorage.setItem(MODE_STORE,'reference')}catch{}renderDepthAtlas();window.scrollTo({top:0,behavior:'instant'});return true}
  if(el.hasAttribute('data-f-focus')){state.focusMode='focus';try{localStorage.setItem(MODE_STORE,'focus')}catch{}showFocus();return true}
  if(state.focusMode!=='focus')return false;
- if(el.hasAttribute('data-f-page')){setFocusPage(Number(el.dataset.fPage));return true}
+ if(state.topic==='moe-route'&&el.hasAttribute('data-moe-token')){state.moeToken=Number(el.dataset.moeToken);showFocus();return true}
+  if(state.topic==='moe-route'&&el.hasAttribute('data-moe-stage')){state.moeStage=el.dataset.moeStage;showFocus();return true}
+  if(el.hasAttribute('data-f-page')){setFocusPage(Number(el.dataset.fPage));return true}
  if(el.hasAttribute('data-f-next')){if(state.readerStep===1&&state.substep<(featuredMechanisms[state.topic]?.steps.length||current().stage.length)-1){state.substep++;markCurrentSeen();showFocus()}else{setFocusPage(state.readerStep===6?0:state.readerStep+1)}return true}
  if(el.hasAttribute('data-f-prev')){if(state.readerStep===1&&state.substep>0){state.substep--;markCurrentSeen();showFocus()}else if(state.readerStep>0){setFocusPage(state.readerStep-1)}return true}
  if(el.hasAttribute('data-f-sub')){state.substep=Number(el.dataset.fSub);markCurrentSeen();showFocus();return true}
@@ -129,7 +131,7 @@ const spotlight=[
 ];
 function mechanismIndexHTML(){return `<section class="m16-home-index"><span class="eyebrow accent-text">V1.6 / 核心机制图解</span><h2>先学明白它怎么运行，再看性能收益</h2><p>五组分步图和具体执行例子，点击直接在网页里学习；不需要先去读外部文章。</p><div class="m16-home-list">${spotlight.map(([id,name,desc],i)=>`<button type="button" data-dtopic="${id}"><span>${String(i+1).padStart(2,'0')} / 机制图解</span><strong>${esc(name)}</strong><small>${esc(desc)}</small></button>`).join('')}</div></section>`}
 
-export function renderDepthAtlas(){const root=$('#depthContent');if(!root)return;const t=current();if(state.focusMode==='focus'){root.innerHTML=renderFocusReader(t,recFor(),{readerStep:state.readerStep,substep:state.substep,variant:state.variant,sourceIndex:state.sourceIndex,answer:state.focusAnswer,records:state.progress});return}root.innerHTML=`<button type="button" class="focus-return-button" data-f-focus>← 返回专注学习（推荐）</button><div class="deep-intro"><span class="eyebrow accent-text">V1.6 · 机制解剖与深读</span><h1>不止知道“是什么”，还要知道“为什么这样运行”<span class="headline-dot">.</span></h1><p>六大模块保持不变。先在本页看懂<strong>系统位置、架构图、数据流、设计权衡与张量例子</strong>，再深入源码和实训。你已经学过的概念可以跳过；微架构与机器人模型继续并行。</p><div class="deep-hero-numbers"><span><b>6</b> 个领域</span><span><b>${depthTopics.length}</b> 个深度专题</span><span><b>${depthPaths.length}</b> 条跨领域路径</span><span>全部中文 · 不上传内网信息</span></div></div>${mechanismIndexHTML()}${pathBar()}${routeMini()}<div class="deep-layout">${tree()}${contentHTML(t)}</div>${coverageHTML()}`;}
+export function renderDepthAtlas(){const root=$('#depthContent');if(!root)return;const t=current();if(state.focusMode==='focus'){root.innerHTML=renderFocusReader(t,recFor(),{readerStep:state.readerStep,substep:state.substep,variant:state.variant,sourceIndex:state.sourceIndex,answer:state.focusAnswer,records:state.progress,moeToken:state.moeToken,moeStage:state.moeStage});return}root.innerHTML=`<button type="button" class="focus-return-button" data-f-focus>← 返回专注学习（推荐）</button><div class="deep-intro"><span class="eyebrow accent-text">V1.6 · 机制解剖与深读</span><h1>不止知道“是什么”，还要知道“为什么这样运行”<span class="headline-dot">.</span></h1><p>六大模块保持不变。先在本页看懂<strong>系统位置、架构图、数据流、设计权衡与张量例子</strong>，再深入源码和实训。你已经学过的概念可以跳过；微架构与机器人模型继续并行。</p><div class="deep-hero-numbers"><span><b>6</b> 个领域</span><span><b>${depthTopics.length}</b> 个深度专题</span><span><b>${depthPaths.length}</b> 条跨领域路径</span><span>全部中文 · 不上传内网信息</span></div></div>${mechanismIndexHTML()}${pathBar()}${routeMini()}<div class="deep-layout">${tree()}${contentHTML(t)}</div>${coverageHTML()}`;}
 export function bindDepthAtlas(){const root=$('#depthView');if(!root)return;
  root.addEventListener('click',async e=>{
   if(handleMechanismStudioClick(e.target,root,current()))return;
