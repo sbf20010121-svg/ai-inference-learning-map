@@ -23,7 +23,7 @@ function loadMode(){try{return localStorage.getItem(MODE_STORE)==='reference'?'r
 export function resumeDepthHash(){try{const id=localStorage.getItem(RESUME_STORE);return 'depth/'+(id&&depthById.has(id)?id:'pd-disagg')+'/L2'}catch{return 'depth/pd-disagg/L2'}}
 function load(){try{return cleanProgress(JSON.parse(localStorage.getItem(DEPTH_STORE)||'{}'))}catch{return {}}}
 function cleanProgress(obj){const result={};if(!obj||typeof obj!=='object'||Array.isArray(obj))return result;for(const t of depthTopics){const v=obj[t.id];if(!v||typeof v!=='object')continue;result[t.id]={status:['new','learning','known','review'].includes(v.status)?v.status:'new',note:typeof v.note==='string'?v.note.slice(0,2500):'',completed:LEVELS.filter(l=>Array.isArray(v.completed)&&v.completed.includes(l)),...normalizeReaderRecord(v)}}return result}
-function save(){try{localStorage.setItem(DEPTH_STORE,JSON.stringify(state.progress))}catch{}}
+function save(){try{localStorage.setItem(DEPTH_STORE,JSON.stringify(state.progress))}catch{}window.dispatchEvent(new Event('atlas:changed'))}
 const topicStatus=id=>state.progress[id]?.status||'new';
 const topicStatusLabel=id=>({new:'未开始',learning:'学习中',known:'已理解',review:'待验证'})[topicStatus(id)];
 const moduleName=id=>depthModules.find(m=>m.id===id)?.name||id;

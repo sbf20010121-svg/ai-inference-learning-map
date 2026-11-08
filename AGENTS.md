@@ -58,3 +58,7 @@ The previous tall reference page is **opt-in**. The normal learning mode must re
 - 至少一个可追踪的数据对象/状态图，以及与该对象一致的 **MathML 排版公式、变量释义、数值推导和适用边界**。
 - 已完成推导的课程定义于 `site/js/mechanism-derivations.js`；保留原课程 ID 和进度存储，其他课程不得无审计被标为“完成深入教学”。
 - 禁止通过未核验的数值、产品版本或虚构的真实 GPU 指令来制造深入感。所有有量纲的值需要声明单位与假设。
+
+## Optional private learning sync
+
+Read `skills/cloud-sync-security/SKILL.md` and `docs/cloud-sync-setup.md` before touching cloud sync. A cloud API is **not** live until user has deployed Worker, created a Private GitHub repo, and configured OAuth/secrets. The public website must remain usable offline; never expose a GitHub PAT in static assets.

@@ -14,7 +14,7 @@ const graph=()=>fullGraph(state.graph);
 const idKnown=id=>graph().nodes.some(n=>n.id===id);
 export function exportUserKnowledge(){return cleanUserGraph(state.graph)}
 export function importUserKnowledge(raw){state.graph=cleanUserGraph(raw);if(STORE)saveUserGraph(STORE,state.graph);if(!idKnown(state.focus))state.focus='kv-cache';renderKnowledgeNetwork();return state.graph.nodes.length}
-const store=()=>{if(STORE)saveUserGraph(STORE,state.graph)};
+const store=()=>{if(STORE)saveUserGraph(STORE,state.graph);window.dispatchEvent(new Event('atlas:changed'))};
 export function selectKnowledge(id){if(idKnown(id)){state.focus=id;try{STORE?.setItem('ai-inference-network-last-focus',id)}catch{}}renderKnowledgeNetwork();}
 export function resetLab(){state.kv=initialKVState();state.osStep=0;state.galleryStep={};state.galleryChoice={};renderKnowledgeNetwork()}
 export function setNetworkStudio(id){if(id==='graph'||studioOptions.some(x=>x.id===id)){state.studio=id;renderKnowledgeNetwork()}}

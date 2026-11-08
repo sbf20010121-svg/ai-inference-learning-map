@@ -231,3 +231,9 @@ tests/                   # 内容结构和链接检查
 - 公式、图形和示例都是明确的教学抽象，不代表真实 B200/vLLM 的完整数值模型或 Benchmark；详情见 `skills/derivation-teaching/SKILL.md`。
 
 本地执行 `npm test` 检查课程数据、公式模型和进度兼容；本地页面为静态资源，不依赖外部 JS。对关键机制的源码及设备性能仍需要按具体版本继续验证。
+
+## V2.1：私人学习数据云同步（待用户授权与部署）
+
+现在内置「云同步」入口和可选 Cloudflare Worker 后端。配置后支持笔记、MoE 疑问、学习进度和个人知识节点保存到独立 GitHub Private 仓库，ChatGPT 可通过已授权的 GitHub 连接按需读取 `learning/snapshot.json`。**截至代码发布时，该后端未部署、私有仓库未创建，因此不代表已经在线同步。**旧有本地保存和 JSON 导入导出全部保留。
+
+具体步骤、安全边界与真实验收见 [私人云同步配置说明](docs/cloud-sync-setup.md)，维护规则见 [Cloud Sync Skill](skills/cloud-sync-security/SKILL.md)。

@@ -1,5 +1,6 @@
 import {modules,lessons,edges,allNodes,nodeMap} from './content.js';
 import {scenarios,moduleRoles,reasonBetween,glossary} from './journeys.js';
+import {createCloudSync} from './cloud-sync.js';
 import {depthTopics} from './depth-content.js';
 import {bindDepthAtlas,goDepth,exportDepthProgress,importDepthProgress,resumeDepthHash} from './depth.js';
 import {bindKnowledgeNetwork,renderKnowledgeNetwork,selectKnowledge,setNetworkStudio,exportUserKnowledge,importUserKnowledge} from './knowledge-network-ui.js';
@@ -18,7 +19,7 @@ function loadProgress(){try{const raw=JSON.parse(localStorage.getItem(STORE_KEY)
 function loadTheme(){try{return localStorage.getItem(THEME_KEY)==='dark'?'dark':'light'}catch{return 'light'}}
 function validProgress(raw){if(!raw||typeof raw!=='object'||Array.isArray(raw))return {};const out={};for(const l of lessons){const obj=raw[l.id];if(!obj||typeof obj!=='object')continue;out[l.id]={status:STATUSES.some(s=>s.id===obj.status)?obj.status:'new',notes:typeof obj.notes==='string'?obj.notes.slice(0,5000):'',quizPassed:obj.quizPassed===true}}return out}
 function getProgress(id){return state.progress[id]||{status:'new',notes:'',quizPassed:false}}
-function setProgress(id,data){if(!lessonMap.has(id))return;state.progress[id]={...getProgress(id),...data};try{localStorage.setItem(STORE_KEY,JSON.stringify(state.progress))}catch{toast('浏览器拒绝保存；可使用导出进度备份。')}renderProgress()}
+function setProgress(id,data){if(!lessonMap.has(id))return;state.progress[id]={...getProgress(id),...data};try{localStorage.setItem(STORE_KEY,JSON.stringify(state.progress))}catch{toast('浏览器拒绝保存；可使用导出进度备份。')}renderProgress();window.dispatchEvent(new Event('atlas:changed'))}
 function renderProgress(){const done=lessons.filter(l=>getProgress(l.id).status==='known').length;const pct=Math.round(done/lessons.length*100);$('#progressNumbers').textContent=`${done} / ${lessons.length} 节已理解`;$('#progressPercent').textContent=pct+'%';$('#progressBar').style.width=pct+'%';}
 function toast(message){const el=$('#toast');el.textContent=message;el.classList.add('show');clearTimeout(toast._timer);toast._timer=setTimeout(()=>el.classList.remove('show'),3100)}
 function setTheme(next){state.theme=next;document.documentElement.dataset.theme=next;try{localStorage.setItem(THEME_KEY,next)}catch{}}
@@ -101,7 +102,7 @@ function renderPath(){const phases=[{num:'01 / 贯通',title:'先把模型到 GP
 
 function chooseNode(id){if(!nodeMap.has(id))return;navHash(`${moduleMap.has(id)?'module':'topic'}/${id}`)}
 function exportProgress(){const payload={format:'ai-inference-learning-map-progress',version:1,exportedAt:new Date().toISOString(),progress:validProgress(state.progress),depthProgress:exportDepthProgress(),knowledgeGraph:exportUserKnowledge()};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='ai-inference-learning-progress.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);toast('学习进度与笔记已导出为 JSON。')}
-async function importProgress(file){if(!file)return;if(file.size>1024*1024){toast('文件太大，进度文件不得超过 1 MB。');return}try{const body=JSON.parse(await file.text());if(body.format!=='ai-inference-learning-map-progress'||body.version!==1||!body.progress||typeof body.progress!=='object')throw new Error('format');const data=validProgress(body.progress);state.progress=data;if(body.depthProgress)importDepthProgress(body.depthProgress);if(body.knowledgeGraph)importUserKnowledge(body.knowledgeGraph);try{localStorage.setItem(STORE_KEY,JSON.stringify(data))}catch{}renderProgress();fromHash();toast('已恢复 '+Object.keys(data).length+' 节课的进度与笔记。')}catch{toast('导入失败：请选择从本站导出的有效 JSON 文件。')}}
+async function importProgress(file){if(!file)return;if(file.size>1024*1024){toast('文件太大，进度文件不得超过 1 MB。');return}try{const body=JSON.parse(await file.text());if(body.format!=='ai-inference-learning-map-progress'||body.version!==1||!body.progress||typeof body.progress!=='object')throw new Error('format');const data=validProgress(body.progress);state.progress=data;if(body.depthProgress)importDepthProgress(body.depthProgress);if(body.knowledgeGraph)importUserKnowledge(body.knowledgeGraph);try{localStorage.setItem(STORE_KEY,JSON.stringify(data))}catch{}renderProgress();fromHash();window.dispatchEvent(new Event('atlas:changed'));toast('已恢复 '+Object.keys(data).length+' 节课的进度与笔记。')}catch{toast('导入失败：请选择从本站导出的有效 JSON 文件。')}}
 
 // SVG zoom and drag: use actual viewBox coordinates to keep panning stable at any size.
 const svg=$('#knowledgeGraph');let drag=null;
@@ -134,4 +135,17 @@ const pipe=e.target.closest('[data-pipe]');if(pipe){$$('[data-pipe]').forEach(b=
 document.addEventListener('input',e=>{if(e.target.id==='lessonNotes'&&state.activeLesson)setProgress(state.activeLesson,{notes:e.target.value})});
 window.addEventListener('hashchange',fromHash);
 
+const cloudSync=createCloudSync({
+  readLocal:()=>({format:'ai-inference-learning-map-progress',version:1,exportedAt:new Date().toISOString(),progress:validProgress(state.progress),depthProgress:exportDepthProgress(),knowledgeGraph:exportUserKnowledge()}),
+  applyRemote:async remote=>{
+    if(!remote||remote.format!=='ai-inference-learning-map-progress'||remote.version!==1)throw new Error('云端文件格式错误');
+    state.progress=validProgress(remote.progress||{});
+    importDepthProgress(remote.depthProgress||{});
+    importUserKnowledge(remote.knowledgeGraph||{});
+    try{localStorage.setItem(STORE_KEY,JSON.stringify(state.progress))}catch{}
+    renderProgress();fromHash();
+  }
+});
 bindDepthAtlas();bindKnowledgeNetwork();setTheme(state.theme);renderProgress();renderRoutes();renderScenario();renderGlossary();fromHash();
+void cloudSync.start().then(()=>fromHash());
+

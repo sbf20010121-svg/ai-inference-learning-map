@@ -16,6 +16,7 @@
   <link rel="stylesheet" href="./knowledge-network.css" />
   <link rel="stylesheet" href="./mechanism-derivations.css" />
   <link rel="stylesheet" href="./mechanism-gallery.css" />
+  <link rel="stylesheet" href="./cloud-sync.css" />
   <script type="module" src="./js/app.js"></script>
 </head>
 <body>
@@ -32,7 +33,7 @@
       <button class="tab" id="topPath" type="button">学习路径</button>
     </nav>
     <div class="top-actions">
-      <span class="version">V2.0 · 公式与机制推导</span>
+      <span class="version">V2.1 · 私人云同步准备版</span><button type="button" id="cloudSyncButton" class="button subtle small cloud-trigger" aria-controls="cloudSyncPanel">云同步 <span id="cloudSyncStatus" data-state="unconfigured">仅本地</span></button>
       <button class="icon-button" id="themeToggle" type="button" title="切换深浅色" aria-label="切换深浅色">◐</button>
       <button class="button subtle small" id="exportBtn" type="button">导出进度</button>
       <button class="button subtle small" id="importBtn" type="button">导入</button>
@@ -89,5 +90,6 @@
     </main>
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <section id="cloudSyncPanel" class="cloud-sync-panel" aria-label="个人学习数据同步设置" hidden></section>
 </body>
 </html>
