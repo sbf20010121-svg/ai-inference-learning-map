@@ -149,5 +149,8 @@ const cloudSync=createCloudSync({
   }
 });
 bindDepthAtlas();bindKnowledgeNetwork();setTheme(state.theme);renderProgress();renderRoutes();renderScenario();renderGlossary();fromHash();
-void cloudSync.start().then(()=>fromHash());
+// OAuth consumes its return hash synchronously; configuration loading must not reset the current reader.
+const beforeCloudStartHash=location.hash;
+void cloudSync.start();
+if(location.hash!==beforeCloudStartHash)fromHash();
 
