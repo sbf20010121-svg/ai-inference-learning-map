@@ -23,7 +23,17 @@ export const FOCUS_PAGES=[
 const has=(id)=>Object.hasOwn(featuredMechanisms,id);
 const stages=t=>has(t.id)?featuredMechanisms[t.id].steps:t.stage;
 const points=t=>has(t.id)?featuredMechanisms[t.id].recall:visualFor(t).remember;
-const researchEntry=t=>t.id==='linear-state'?'<a class="focus-research-entry" href="./research-labs.html?topic=linear">研究型深读：逐 Token 状态与 Chunk 数学实验 ↗</a>':t.id==='compiler-lowering'?'<a class="focus-research-entry" href="./research-labs.html?topic=compiler">研究型深读：真实 Triton 编译层级与数据布局 ↗</a>':'';
+const researchEntry=t=>{
+ const routes={
+  'linear-state':['./research-labs.html?topic=linear','Gated DeltaNet：逐 Token 状态与 Chunk 合成'],
+  'compiler-lowering':['./research-labs.html?topic=compiler','Triton 编译：IR / Layout / Mask'],
+  'vllm-scheduler':['./research-expansion.html?topic=scheduler','vLLM：预算、Chunked Prefill 与 KV 限制'],
+  'moe-route':['./research-expansion.html?topic=moe','MoE：Router / EP / Grouped GEMM'],
+  'attention-tiling':['./research-expansion.html?topic=flash','FlashAttention：Online Softmax 分块合并'],
+  'vla-policy':['./research-expansion.html?topic=vla','VLA：异步 Chunk 与动作队列']
+ };
+ const link=routes[t.id];return link?`<a class="focus-research-entry" href="${link[0]}">研究型深读：${link[1]} ↗</a>`:'';
+}
 const pageGroup=n=>n<5?'核心学习':n===5?'实现与源码':'性能与实验';
 export function normalizeReaderRecord(raw={},size=7){
  const last=Number.isInteger(raw.readerStep)?raw.readerStep:0;
