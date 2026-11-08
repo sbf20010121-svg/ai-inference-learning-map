@@ -26,7 +26,7 @@ test('其他专题不被强行添加新的机制示意、进度不迁移',()=>{
  assert.match(js,/ai-inference-depth-progress-v1/);
  const html=readFileSync(new URL('../site/index.html',import.meta.url),'utf8');
  assert.match(html,/mechanism-studio\.css/);
- assert.match(html,/V1\.(6|7|8|9)|V2\.[01]|V3/);
+ assert.match(html,/V1\.(6|7|8|9)|V2\.[01]|V[34]/);
 });
 test('FlashAttention 两个 Tile 在线 softmax 数值等于全局 softmax',()=>{
  const s=flashStats();

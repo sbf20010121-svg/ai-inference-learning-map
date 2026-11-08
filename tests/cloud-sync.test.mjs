@@ -6,7 +6,7 @@ import {cloudHelpers} from '../site/js/cloud-sync.js';
 
 const env={SITE_URL:'https://sbf20010121-svg.github.io/ai-inference-learning-map/',ALLOWED_LOGIN:'sbf20010121-svg',DATA_REPO:'sbf20010121-svg/ai-inference-private-data',GH_OAUTH_CLIENT_ID:'test-id',GH_OAUTH_CLIENT_SECRET:'server-only-secret',GITHUB_DATA_PAT:'private-write-token',SESSION_HMAC_KEY:'local-dev-test-key-at-least-32-characters'};
 const siteOrigin=new URL(env.SITE_URL).origin;
-const snapshot={format:'ai-inference-learning-map-progress',version:1,progress:{},depthProgress:{'moe-route':{status:'learning',note:'Top-2 为什么不会必然让计算翻倍？'}},knowledgeGraph:{nodes:[],edges:[]}};
+const snapshot={format:'ai-inference-learning-map-progress',version:1,progress:{},depthProgress:{'moe-route':{status:'learning',note:'Top-2 为什么不会必然让计算翻倍？',mechanismReading:{version:1,last:'dispatch',seen:['router','dispatch']}}},knowledgeGraph:{nodes:[],edges:[]}};
 function fakeGitHub(){let stored=null,sha=null,rev=0;const calls=[];
  async function fetcher(url,options={}){
   const method=options.method||'GET';calls.push({url,method,authorization:options.headers?.Authorization||''});

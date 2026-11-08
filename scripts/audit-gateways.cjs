@@ -43,7 +43,9 @@ const assert = require("node:assert/strict");
       "linear-state",
     ]) {
       await p.evaluate((id) => (location.hash = `depth/${id}/L2`), id);
-      await p.locator('[data-f-page="2"]').click();
+      const {chaptersFor}=await import('../site/js/mechanism-curriculum.js');
+      const chapter=chaptersFor(id).find(c=>c.formula);
+      await p.locator(`[data-mech-chapter="${chapter.id}"]`).click();
       await fit();
       await p.screenshot({
         path: `test-results/${width}-math-${id}.png`,
