@@ -91,3 +91,26 @@ test('OAuth callback network exception is caught with a safe stage instead of Wo
    assert.doesNotMatch(JSON.stringify(result),/injected upstream outage|sample-code/);
  }finally{console.error=old;}
 });
+
+
+test('production Worker fetch adapter must not interpret ExecutionContext as GitHub fetcher',async()=>{
+ const worker=(await import('../cloud-sync-worker.js')).default;
+ const mock=fakeGitHub();
+ const originalFetch=globalThis.fetch;
+ globalThis.fetch=mock.fetcher;
+ try{
+   const context={waitUntil(){},passThroughOnException(){}};
+   const start=await worker.fetch(req('GET','/auth/start'),env,context);
+   assert.equal(start.status,302);
+   const authorization=new URL(start.headers.get('location'));
+   const state=authorization.searchParams.get('state');
+   const cookie=start.headers.get('set-cookie').split(';')[0];
+   const callback=new Request('https://atlas-private-sync.workers.dev/auth/callback?code=sample-code&state='+state,{headers:{Cookie:cookie}});
+   const response=await worker.fetch(callback,env,context);
+   assert.equal(response.status,302);
+   assert.equal(new URL(response.headers.get('location')).origin,siteOrigin);
+   assert.ok(mock.calls.some(call=>call.url==='https://github.com/login/oauth/access_token'));
+ }finally{
+   globalThis.fetch=originalFetch;
+ }
+});
