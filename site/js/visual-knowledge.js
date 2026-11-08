@@ -12,11 +12,17 @@ export const illustrated = {
     remember:['模型数学决定算子，算子实现决定 Kernel。','同名算子在 Prefill/Decode 中的 Shape 可能相差很大。','先分模块测量，再讨论算力或带宽瓶颈。']
   },
   'moe-route':{
-    key:'MoE 不是每个 Token 计算所有专家，而是先路由再执行被选中的专家；因此多了不规则分组和可能的跨卡通信。',
-    chain:[['隐藏状态','每个 Token 到达 MoE 层，形状可展平为 [T,H]。'],['Router 打分','计算每个 Token 对各 Expert 的分数，并选择 Top-k。'],['Dispatch / 分组','按选中的专家重新排列 Token，可能发生 All-to-All。'],['专家计算','各 Expert 执行自己的 GEMM/MLP；不同专家负载不一定均衡。'],['Combine','按路由权重把专家输出还原到原 Token 顺序。']],
-    sample:['分组例子','16 个 Token、4 个专家、每 Token 选 2 个专家，理论上产生 32 个 token-expert 分配；并不意味着 32 个独立 GPU Kernel。','Top-k=2 不代表计算量恰好比 Dense 减半；专家宽度、通信和实现都不同。'],
-    compare:[['单卡专家','无跨设备 All-to-All，更易控制延迟','显存/专家容量受限'],['Expert Parallel','将更多专家分布到多 GPU','Dispatch、All-to-All、负载倾斜']],
-    remember:['Router 决定 Token 去哪里，不等于 GPU Kernel Scheduler。','Grouped GEMM 的专家分组形状是关键性能变量。','计算、Dispatch、网络必须在同一时间线分析。']
+    key:'MoE 路由依据当前 Token 的隐藏向量所产生的 Router 得分，选中部分 Expert FFN；EP 负责专家跨卡部署，All-to-All 负责 Token 隐藏向量交换，Grouped GEMM 负责卡内多个专家计算。',
+    chain:[
+      ['Router Logits / Score','以 Token 隐藏向量 h 和 Router 权重 Wᵣ 计算每专家得分；Softmax/Sigmoid 和负载 Bias 依模型而定。'],
+      ['Top-k / Dispatch','选择当前 Token 的 k 个 Expert，并按专家汇集隐藏向量；不同专家得到不同数量的 Token。'],
+      ['EP / All-to-All','专家权重可能位于不同 GPU；跨卡时交换的是路由 Token 的隐藏向量，非每步迁移所有权重。'],
+      ['Grouped Expert FFN','每个专家仍用独立 Gate/Up/Down 等权重执行自身 FFN；Grouped GEMM 统一调度多组形状可能不同的矩阵乘法。'],
+      ['Combine / 恢复顺序','把专家输出发送回需要的位置，按 Router 合并权重加权后恢复原 Token 顺序。']
+    ],
+    sample:['可追踪的 MoE 例子','4 个 Token、3 个 Expert、Top-2。T0→E0/E1；T1→E1/E2；T2→E0/E2；T3→E1/E2，因此 E0 有 2 份输入，E1/E2 各有 3 份。点击课程里的「具体例子」可查看 Router 分数、EP 通信矩阵、各组 SwiGLU 的张量 Shape。','分数与权重、跨卡通信和专家执行都是不同环节；某 Expert 收到 3 个 Token，不意味着整个系统要启动 3 个独立 GEMM Kernel。'],
+    compare:[['本地专家','不需要跨设备交换，被选专家参数仍各不相同','可装载的专家数量受单卡显存约束'],['Expert Parallel','将专家权重分布到多张 GPU，让更大专家集合可部署','增加 Token Dispatch、All-to-All、负载倾斜和结果回传成本']],
+    remember:['Top-k 比较 Router 对当前 Token 计算出的分数，而不是 Expert 的参数范数。','EP=专家位置；All-to-All=跨卡交换 Token；Grouped GEMM=组织不同专家的矩阵运算。','Expert FFN 通常有矩阵乘、激活和门控；只执行选中 Routed Experts，Shared Expert 可能另外计算。']
   },
   'vla-policy':{
     key:'机器人 VLA 的动作专家根据视觉、语言和当前机器人状态生成一段动作；Flow Matching 动作头可能多次前向，并非 LLM 式逐 Token 解码。',
