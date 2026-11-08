@@ -62,3 +62,8 @@ The previous tall reference page is **opt-in**. The normal learning mode must re
 ## Optional private learning sync
 
 Read `skills/cloud-sync-security/SKILL.md` and `docs/cloud-sync-setup.md` before touching cloud sync. A cloud API is **not** live until user has deployed Worker, created a Private GitHub repo, and configured OAuth/secrets. The public website must remain usable offline; never expose a GitHub PAT in static assets.
+
+## V2.2 深度源码导读验收
+- 按 `skills/code-tour-authoring/SKILL.md` 维护。所有深度专题的 L3 都必须有本页可读的执行骨架、阶段代码、真实输入输出和变量定义；原六大模块和稳定 ID 不可更改。
+- 用 `validateCodeTours(depthTopics.map(t=>t.id))` 核对所有专题覆盖。伪代码必须声明为教学抽象，不得将自造函数名当作源码 API 或微架构 RTL。
+- 外部资料用于版本核查，不能替代页面内的解释；电脑与手机都必须能点击阶段并正确联动。验证 `npm test`，保留私人云同步与原进度。

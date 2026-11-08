@@ -237,3 +237,9 @@ tests/                   # 内容结构和链接检查
 现在内置「云同步」入口和可选 Cloudflare Worker 后端。配置后支持笔记、MoE 疑问、学习进度和个人知识节点保存到独立 GitHub Private 仓库，ChatGPT 可通过已授权的 GitHub 连接按需读取 `learning/snapshot.json`。**截至代码发布时，该后端未部署、私有仓库未创建，因此不代表已经在线同步。**旧有本地保存和 JSON 导入导出全部保留。
 
 具体步骤、安全边界与真实验收见 [私人云同步配置说明](docs/cloud-sync-setup.md)，维护规则见 [Cloud Sync Skill](skills/cloud-sync-security/SKILL.md)。
+
+## V2.2 · 全部 25 个深度专题的源码与执行导读
+
+原先 L3 只有源码入口，现在每个主题都拥有其技术专属的原创伪代码导读（共 25 份、274 行）。点击阶段，可在同一屏对应看到**执行者、输入张量/状态、关键操作、输出对象及原因**，并查看变量表、适用边界与官方源码核对入口。移动端只突出当前阶段，避免长代码墙。六大模块、课程 ID、学习进度和私人云同步格式全部保留。
+
+新增文件：`site/js/code-tours.js`、`site/js/code-tour-view.js`、`site/code-tour.css` 和 `skills/code-tour-authoring/SKILL.md`。可由「深度图谱 → 任一专题 → 源码追踪」进入。代码均标注为**教学伪代码，不是原项目逐行复制、真实 API 或可直接运行的代码**。实际源码的路径和版本仍需逐一核查，尚不等于全面源码审计。

@@ -8,6 +8,7 @@ import {reasoningHTML,handleReasoning} from './reasoning.js';
 import {visualHTML,inlineImplementation,handleVisualClick,validateVisualKnowledge} from './visual-atlas.js';
 import {handleMechanismStudioClick,featuredMechanismIds,featuredMechanisms} from './mechanism-studio.js';
 import {renderFocusReader,normalizeReaderRecord} from './focus-reader.js';
+import {renderCodeTour} from './code-tour-view.js';
 validateDepthData();
 validateVisualKnowledge(depthTopics);
 const $=(selector,root=document)=>root.querySelector(selector);
@@ -48,6 +49,15 @@ function markCurrentSeen(){const rec=recFor();rec.readerStep=state.readerStep;re
 function showFocus(){renderDepthAtlas();const box=$('#focusReader');if(box){const top=box.getBoundingClientRect().top+window.scrollY-86;if(window.scrollY>top+140 || window.scrollY<top-140)window.scrollTo({top:Math.max(0,top),behavior:'instant'})}}
 function setFocusPage(n){state.readerStep=Math.max(0,Math.min(6,n));state.level=state.readerStep===5?'L3':state.readerStep===6?'L4':'L2';state.focusAnswer=null;state.substep=0;state.sourceIndex=0;markCurrentSeen();history.replaceState(null,'','#depth/'+state.topic+'/'+state.level);showFocus()}
 function handleFocusClick(el){
+ if(el.hasAttribute('data-code-phase')){
+   const n=Number(el.dataset.codePhase);
+   state.sourceIndex=Math.max(0,Number.isFinite(n)?n:0);
+   const active=document.querySelector('#codeTourRoot');
+   if(active)active.outerHTML=renderCodeTour(current(),state.sourceIndex);
+   else if(state.focusMode==='focus')showFocus();
+   else renderDepthAtlas();
+   return true;
+ }
  if(el.hasAttribute('data-f-reference')){state.focusMode='reference';try{localStorage.setItem(MODE_STORE,'reference')}catch{}renderDepthAtlas();window.scrollTo({top:0,behavior:'instant'});return true}
  if(el.hasAttribute('data-f-focus')){state.focusMode='focus';try{localStorage.setItem(MODE_STORE,'focus')}catch{}showFocus();return true}
  if(state.focusMode!=='focus')return false;
@@ -73,7 +83,7 @@ const moduleQuestion=t=>depthModules.find(m=>m.id===t.module)?.question||'';
 function flowHTML(t){return `<div class="deep-flow" role="group" aria-label="交互式机制流程图">${t.stage.map((s,i)=>`<div class="deep-flow-cell"><button type="button" data-dstage="${i}" class="deep-flow-node ${state.stage===i?'selected':''}" aria-pressed="${state.stage===i}"><span>0${i+1}</span><strong>${esc(s.title)}</strong><small>${esc(s.data)}</small></button>${i<t.stage.length-1?'<div class="deep-flow-arrow" aria-hidden="true">→</div>':''}</div>`).join('')}</div>`}
 function stageDetail(t){const s=t.stage[state.stage];return `<div class="deep-stage-detail"><div class="deep-stage-heading"><span>第 ${state.stage+1}/${t.stage.length} 站 · 点击上方节点可切换</span><div><button type="button" data-dprev ${state.stage===0?'disabled':''}>← 上一步</button><button type="button" data-dnext ${state.stage===t.stage.length-1?'disabled':''}>下一步 →</button></div></div><h3>${esc(s.title)}</h3><div class="deep-inspection-grid"><div class="deep-inspection"><small>数据从哪来到哪去</small><p>${esc(s.data)}</p></div><div class="deep-inspection"><small>这一环节如何工作</small><p>${esc(s.mechanism)}</p></div><div class="deep-inspection"><small>性能要看什么</small><p>${esc(s.metric)}</p></div><div class="deep-inspection warning"><small>容易误判的地方</small><p>${esc(s.trap)}</p></div></div></div>`}
 function mechanismPage(t){return `<section class="deep-teach"><div class="deep-section-top"><span>L2 · 工作机制</span><h3>${esc(t.question)}</h3><p>${esc(t.analogy)}</p></div>${flowHTML(t)}${stageDetail(t)}<div class="deep-full-mechanism"><h4>完整机制速览：四步都在本页</h4><div class="deep-full-grid">${t.stage.map((s,i)=>`<div><small>${String(i+1).padStart(2,'0')} / ${esc(s.title)}</small><p>${esc(s.mechanism)}</p></div>`).join('')}</div></div><div class="deep-points">${t.insights.map((v,i)=>`<div><span>机制 ${String(i+1).padStart(2,'0')}</span><p>${esc(v)}</p></div>`).join('')}</div><p class="deep-caption">上方是教学抽象；真实模型和框架可能包含更多分支、并行及重叠行为。</p></section>`}
-function implementationPage(t){return `<section class="deep-teach"><div class="deep-section-top"><span>L3 · 源码与张量执行</span><h3>先在页面看懂实现，再核对具体版本的源码</h3><p>把调用过程、张量输入输出和性能观察项直接铺在下面，不再要求先点开文档才能学习。公开源码链接只用于验证具体实现。</p></div>${inlineImplementation(t)}<details class="deep-reference-details"><summary>可选：展开对应版本的源码 / 官方文档入口</summary><div class="deep-traces">${t.traces.map(([name,path,desc,url],i)=>`<div class="deep-trace"><span class="deep-trace-num">0${i+1}</span><div><small>${esc(name)}</small><h4>${esc(path)}</h4><p>${esc(desc)}</p><a href="${esc(url)}" target="_blank" rel="noopener noreferrer">核对该机制的实现或说明 ↗</a></div></div>`).join('')}</div></details><div class="deep-implementation-questions"><h4>确认你真正理解，而不只是看了代码</h4><div class="deep-question-grid"><div><b>输入输出</b><p>哪些张量？形状和 dtype 如何变化？</p></div><div><b>执行边界</b><p>哪些在 CPU，哪些在 GPU？是否存在异步和同步？</p></div><div><b>设备实现</b><p>库 Kernel、Triton、CUDA 或其它后端？如何确认？</p></div><div><b>版本证据</b><p>源码位置、编译配置和 Profiling 能否相互验证？</p></div></div></div></section>`}
+function implementationPage(t){return `<section class="deep-teach"><div class="deep-section-top"><span>L3 · 源码与实际执行</span><h3>从逻辑走到代码：每段操作改变什么？</h3><p>这是原创教学伪代码，不是对外部仓库的逐行复刻。点代码阶段查看张量、状态与代价；下方有可核对的实际源码入口。</p></div>${renderCodeTour(t,state.sourceIndex)}<details class="deep-reference-details"><summary>可选：传统实现模块归纳</summary>${inlineImplementation(t)}</details></section>`}
 export const depthLabDefinitions={
  pd:{title:'KV 传输理论下界',intro:'把 KV 当作不压缩、无重叠的理想传输。调整上下文和带宽，理解为什么长上下文会带来新的转运成本。',controls:[['seq','输入 Token 数',512,8192,512,4096,'tokens'],['layers','层数',8,80,8,32,'层'],['heads','KV Head 数',1,32,1,8,'个'],['bw','有效传输带宽',10,400,10,100,'GB/s']]},
  kv:{title:'KV Cache 体积估算',intro:'以每元素 2 字节、HeadDim=128、K/V 各一份为教学假设，比较上下文/Heads 对显存的影响。',controls:[['seq','历史 Token 数',512,16384,512,4096,'tokens'],['layers','层数',8,80,8,32,'层'],['heads','KV Head 数',1,32,1,8,'个'],['qheads','Query Head 数',32,64,8,32,'个']]},
