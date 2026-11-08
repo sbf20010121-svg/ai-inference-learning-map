@@ -39,7 +39,9 @@ export const curatedRelations=[
   ['world-model','attention-tiling','accesses','部分基于时空 Transformer 的世界模型会使用 Attention；不是所有世界模型均如此。'],
   ['host-runtime','runtime-graph','prerequisite','CPU/驱动/流同步的基础解释了 Runtime 工作提交和 CUDA Graph Replay 的边界。'],
   ['runtime-graph','profiling','explains','CPU Submit、Launch、Graph Replay 与 GPU 执行时间线必须分开观察。'],
-  ['moe-route','multi-gpu','accesses','专家分布在不同 GPU 时会产生 All-to-All 等通信；部署策略改变开销。']
+  ['moe-route','multi-gpu','accesses','专家分布在不同 GPU 时会产生 All-to-All 等通信；部署策略改变开销。'],
+  ['moe-route','gemm-tiling','implements','每个 Expert 收到不同数量的 Token，Grouped GEMM 把这些不同 M 的独立专家矩阵乘法作为一组调度。'],
+  ['moe-route','profiling','explains','MoE 完整热点需要同时检查 Router、Dispatch/All-to-All、各 Expert GEMM 和 Combine，不能只看单个专家算子。']
 ].map(([from,to,type,why],i)=>({id:`cur-${i+1}`,from,to,type,why,origin:'curated'}));
 export const curatedNodes=depthTopics.map(t=>({id:t.id,title:t.title,summary:t.summary,module:t.module,origin:'curated',status:'source'}));
 const CURATED_IDS=new Set(curatedNodes.map(n=>n.id));
