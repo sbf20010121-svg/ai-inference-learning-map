@@ -1,3 +1,15 @@
+## 全站机制课程重构（2026-11-08）
+
+25个深度专题的默认阅读页已接入逐节编写的对象案例：可重放状态、就地变量解释、MathML与数值推导、条件改变后的判断、实现依据和验证边界。10节概览课的每个执行环节也加入对应的数据图。六大模块、课程ID、旧进度/笔记/个人知识网络与私人同步协议保持兼容；原有六节研究实验作为可选深入保留。
+
+**完成的是全站核心教学重写，不是所有子机制、固定版本逐函数源码审计或真实GPU实验。** 各节点的具体范围与剩余缺口见[逐节点审查](docs/course-refactor-audit.md)。新版不会把你的“已掌握”记录当作课程质量认证。
+
+本地运行：`python -m http.server 5173 --directory site`；数值/兼容检查：`npm test`。浏览器检查脚本：`scripts/audit-browser.cjs`，使用Playwright与已安装Chrome。所有运行中的数值模型均标注为教学示例。
+
+以下保留历史版本记录，原来的“第一批/部分覆盖”等表述只描述当时状态；以逐节点审查的当前范围为准。
+
+---
+
 ## 第二批研究型课程（2026-11-08 · 分批重构中）
 
 在原有六大领域、课程节点和进度记录不变的前提下，新增四节[以机制状态为核心的研究课](site/research-expansion.html)：[vLLM Scheduler](site/research-expansion.html?topic=scheduler)、[MoE / EP](site/research-expansion.html?topic=moe)、[FlashAttention](site/research-expansion.html?topic=flash)、[VLA 异步推理](site/research-expansion.html?topic=vla)。

@@ -31,11 +31,11 @@ test('focused reader displays mechanism without navigation to external sources',
   const base={readerStep:0,seenSteps:[],seenSubsteps:[],status:'learning'};
   const settings={records:{}};
   const intro=renderFocusReader(topic,base,{...settings,readerStep:0});
-  assert.match(intro,/theory-embedded/);
-  assert.match(intro,/theory-figure/);
+  assert.match(intro,/course-content/);
+  assert.match(intro,/course-figure/);
   const ex=renderFocusReader(topic,base,{...settings,readerStep:2});
-  assert.match(ex,/theory-math/);
-  assert.match(ex,/theory-derivation-steps/);
+  assert.match(ex,/course-math/);
+  assert.match(ex,/course-derivation/);
  }
 });
 

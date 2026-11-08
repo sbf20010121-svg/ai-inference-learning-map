@@ -4,6 +4,7 @@
  * explicit, exportable additions – never posted to GitHub without review.
  */
 import {depthTopics} from './depth-content.js';
+import {courseNotes} from './course-notes.js';
 export const GRAPH_STORE='ai-inference-semantic-graph-v1';
 export const RELATION_TYPES={
   prerequisite:{label:'理解前提',color:'#68799d'},
@@ -41,9 +42,17 @@ export const curatedRelations=[
   ['runtime-graph','profiling','explains','CPU Submit、Launch、Graph Replay 与 GPU 执行时间线必须分开观察。'],
   ['moe-route','multi-gpu','accesses','专家分布在不同 GPU 时会产生 All-to-All 等通信；部署策略改变开销。'],
   ['moe-route','gemm-tiling','implements','每个 Expert 收到不同数量的 Token，Grouped GEMM 把这些不同 M 的独立专家矩阵乘法作为一组调度。'],
-  ['moe-route','profiling','explains','MoE 完整热点需要同时检查 Router、Dispatch/All-to-All、各 Expert GEMM 和 Combine，不能只看单个专家算子。']
+  ['moe-route','profiling','explains','MoE 完整热点需要同时检查 Router、Dispatch/All-to-All、各 Expert GEMM 和 Combine，不能只看单个专家算子。'],
+  ['frameworks','serving-slo','explains','引擎对比必须固定请求到达与SLO；离线最高吞吐不能替代在线满足率。'],
+  ['frameworks','compiler-lowering','accesses','相同模型在不同引擎可能选择不同编译/库后端，应记录实际Kernel而非仅框架名。'],
+  ['quant-pipeline','gemm-tiling','implements','量化格式必须由兼容shape与设备的GEMM后端执行；Scale和反量化也改变成本。'],
+  ['llm-block','moe-route','extends','稠密前馈层可替换为路由专家计算；它改变Token分桶和通信，不只改变参数量。'],
+  ['llm-block','fused-norm','accesses','层内归一化和门控具有不同依赖，决定能否融合与中间量如何保存。'],
+  ['linear-state','triton-tiling','implements','递推/Chunk状态更新必须映射到实际Tile和布局；矩阵形状决定资源与数据交换。'],
+  ['tensorcore-b200','memory-route','accesses','矩阵流水线需要显式准备Tile与同步；Shared和Tensor Memory的角色不能当成自动Cache层。'],
+  ['spec-decode','vllm-scheduler','accesses','候选验证改变本轮位置数与缓存需求；接受后仍需同步请求的已计算状态。']
 ].map(([from,to,type,why],i)=>({id:`cur-${i+1}`,from,to,type,why,origin:'curated'}));
-export const curatedNodes=depthTopics.map(t=>({id:t.id,title:t.title,summary:t.summary,module:t.module,origin:'curated',status:'source'}));
+export const curatedNodes=depthTopics.map(t=>({id:t.id,title:t.title,summary:courseNotes[t.id]?.definition||t.summary,module:t.module,origin:'curated',status:'source'}));
 const CURATED_IDS=new Set(curatedNodes.map(n=>n.id));
 const SAFE_ID=/^mine-[a-z0-9-]{1,60}$/;
 const safeTxt=(v,max)=>typeof v==='string'?v.trim().slice(0,max):'';
