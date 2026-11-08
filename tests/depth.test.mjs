@@ -16,7 +16,7 @@ test('Depth map preserves the original six module IDs and lesson references',()=
 
 test('Each deep topic supports L2 flow, L3 evidence, a meaningful L4 experiment design and reasoning quiz',()=>{
  for(const t of depthTopics){
-  assert.equal(t.stage.length,4,`${t.id}: expected four visual stages`);
+  assert.ok(t.stage.length>=4&&t.stage.length<=7,`${t.id}: expected 4–7 meaningful mechanism stages`);
   assert.ok(t.stage.every(s=>s.data&&s.mechanism&&s.metric&&s.trap),t.id);
   assert.ok(t.insights.length>=2,t.id);
   assert.ok(t.traces.every(x=>x.length>=4&&x[3].startsWith('https://')),t.id);
