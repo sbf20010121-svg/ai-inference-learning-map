@@ -109,5 +109,11 @@ export async function handleRequest(request,env,fetcher=fetch){
  }
  return asJson({error:'接口不存在'},404);
 }
-export default {fetch:handleRequest};
+// Cloudflare invokes fetch(request, env, ExecutionContext). Do not pass
+// ExecutionContext to handleRequest's optional test-only fetcher parameter.
+export default {
+  fetch(request, env, _ctx) {
+    return handleRequest(request, env);
+  }
+};
 export const testHelpers={signToken,verifyToken,validatePrivateRepo,readSnapshot,validateConfig};
