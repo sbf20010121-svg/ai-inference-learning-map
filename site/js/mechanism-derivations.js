@@ -105,14 +105,14 @@ const lessons={
   source:'https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html'
  },
  'moe-route':{
-  premise:'MoE 不是所有 Token 都运行所有专家；路由器先选专家，Dispatch 把 Token 按专家重新分组，最后 Combine 恢复每个 Token 的输出。',
-  why:'同一 Batch 中，不同 Token 会选择不同 Expert。因而每个 Expert 的输入数量不同，计算可以形成不规则的 Grouped GEMM；跨 GPU 还可能有 All-to-All。',
+  premise:'Top-k 选择依据 Router 对当前 Token 的隐藏向量计算的得分，而不是比较 Expert FFN 参数的大小；选中的专家可能部署在不同 GPU。',
+  why:'Router 使用隐藏向量和自己的投影权重得到各专家 Logits，经过评分/选择策略决定 Top-k。Dispatch 根据专家重新排列 Token；EP 可以将专家分到不同 GPU，并使用 All-to-All 交换隐藏向量。各 Expert 用独立 FFN 权重执行计算，Grouped GEMM 将这些不同大小的矩阵乘法分组，最后 Combine 加权还原。',
   formula:math(`${msub('y','t')}${mo('=')}${mund('∑','e∈TopK(t)')}${msub('g','t,e')}${msub('E','e')}${mo('(')}${msub('x','t')}${mo(')')}`,'Token t 的输出是被选中专家的结果按路由权重求和'),
-  copy:'y_t = Σ_{e in TopK(t)} g_{t,e} Expert_e(x_t)',
-  vars:[['xₜ','输入第 t 个 Token 的隐藏向量','向量'],['TopK(t)','Token t 被选中的专家集合','专家编号'],['gₜ,ₑ','Token t 对专家 e 的路由权重','无量纲'],['Eₑ','第 e 个 Expert 网络','函数']],
-  worked:['例如 T0→E0/E1；T1→E1/E2；T2→E0/E2；T3→E1/E2。','重排后 E0 得 2 个 Token，E1、E2 各得 3 个；执行完后按原 Token 索引和权重 Combine。','所以 MoE 的热点不仅是 Expert GEMM，还可能是路由、Gather/Scatter、Padding 和多卡通信。'],
-  limit:'不含容量限制、实际路由权重、负载均衡损失和跨设备分片策略。',
-  source:'https://arxiv.org/abs/1701.06538'
+  copy:'z_t,e = h_t · W_router,e; y_t = Σ_{e in TopK(t)} g_t,e Expert_e(x_t)',
+  vars:[['hₜ / xₜ','Token t 的隐藏向量；路由和专家的输入','[H]'],['Wᵣ,ₑ','Router 用于给专家 e 打分的权重，并非专家 FFN 权重','[H]'],['zₜ,ₑ','Router 原始 Logit，可再经 Softmax/Sigmoid 或负载 Bias','无量纲'],['gₜ,ₑ','对 Expert e 输出进行加权合并的系数；可能与排序分数不同','无量纲'],['Mₑ','进入专家 e 的 Token 数，可不同','Token'],['Eₑ','第 e 个 Expert 的前馈网络（如 SwiGLU）','[H] → [H]']],
+  worked:['示例：T0 的 Router Logits 为 [2,1,0]，Softmax 得约 [0.665,0.245,0.090]；Top-2 选择 E0/E1 后，按选中分数重新归一化为约 [0.731,0.269]。','4 个 Token、Top-2 得到 8 个 Token-Expert 分配：E0 收到 2 份，E1/E2 各收到 3 份；这是专家 GEMM 输入的 Mₑ，并不意味着启动 8 个 Kernel。','若 GPU0 存放 E0/E1、GPU1 存放 E2，跨卡需要交换部分 Token 隐藏向量，而不是每轮迁移全部 Expert 权重；FFN 还包括激活和门控计算。'],
+  limit:'分数经过 Softmax、Top-2 后重新归一化是教学示意；其他模型可能使用 Sigmoid、Group Top-k、路由 Bias 和 Shared Expert。此处并非真实模型的运行数值或通信实测。',
+  source:'https://docs.nvidia.com/megatron-core/developer-guide/latest/user-guide/features/moe.html'
  },
  'vla-policy':{
   premise:'Flow Matching 的迭代发生在动作生成模型内部，不是机器人执行了那么多次控制动作。',
