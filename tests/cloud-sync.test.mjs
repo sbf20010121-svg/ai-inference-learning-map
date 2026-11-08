@@ -73,3 +73,21 @@ test('private-only restriction prevents accidental public repo writes',async()=>
  const result=await handleRequest(req('PUT','/api/snapshot',token,{sha:null,snapshot}),env,unsafe);
  assert.equal(result.status,403);assert.equal(mock.stored,null);
 });
+
+
+test('OAuth callback network exception is caught with a safe stage instead of Worker 1101',async()=>{
+ const start=await handleRequest(req('GET','/auth/start'),env,fakeGitHub().fetcher);
+ assert.equal(start.status,302);
+ const authorize=new URL(start.headers.get('location'));
+ const state=authorize.searchParams.get('state');
+ const cookie=start.headers.get('set-cookie').split(';')[0];
+ const callback=new Request('https://atlas-private-sync.workers.dev/auth/callback?code=sample-code&state='+state,{headers:{Cookie:cookie}});
+ const old=console.error;console.error=()=>{};
+ try {
+   const response=await handleRequest(callback,env,async()=>{throw new Error('injected upstream outage: sensitive data must not appear')});
+   assert.equal(response.status,500);
+   const result=await response.json();
+   assert.equal(result.stage,'github_token_exchange');
+   assert.doesNotMatch(JSON.stringify(result),/injected upstream outage|sample-code/);
+ }finally{console.error=old;}
+});
