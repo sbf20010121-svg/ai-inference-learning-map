@@ -283,7 +283,7 @@ const assert = require("node:assert/strict");
       path: `test-results/v4-${width}-dark.png`,
       fullPage: true,
     });
-    await page.locator(".mechanism-catalog summary").click();
+    await page.locator(".mechanism-catalog > summary").click();
     assert.equal(
       await page.evaluate(
         () => document.documentElement.scrollWidth > innerWidth + 1,
@@ -291,6 +291,7 @@ const assert = require("node:assert/strict");
       false,
       `catalog ${width}`,
     );
+    await page.locator('.catalog-unit').filter({has: page.locator('[data-dtopic="moe-route"]')}).locator("summary").click();
     await page.locator('.mechanism-catalog [data-dtopic="moe-route"]').click();
     await page.waitForFunction(() =>
       location.hash.includes("depth/moe-route/"),

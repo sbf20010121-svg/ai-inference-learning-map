@@ -1,3 +1,4 @@
+import { foundationCourses } from "./foundation-index.js";
 /** Chapters follow the mechanism's dependencies; no prescribed page or stage count. */
 const c = (id, title, question, explain, figure, extras = {}) => ({
   id,
@@ -1007,6 +1008,7 @@ export const curricula = {
     ),
   ],
 };
+for (const c of foundationCourses) curricula[c.id] = c.chapters;
 export function chaptersFor(id) {
   const chapters = curricula[id];
   if (!chapters) throw Error(`Missing curriculum ${id}`);

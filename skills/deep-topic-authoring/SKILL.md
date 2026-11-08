@@ -3,6 +3,8 @@ name: deep-topic-authoring
 description: Add or extend L2-L4 Chinese interactive AI inference deep-dive lessons while preserving the existing six-module AI learning map. Use for architecture/source/performance topics.
 ---
 
+> V5维护先读AGENTS.md的V5优先规则及docs/curriculum-system-v5.md；新独立课使用统一course-registry与foundation模块，历史25门专用字段检查只适用于旧课。
+
 # Deep topic authoring
 
 ## Keep the original map

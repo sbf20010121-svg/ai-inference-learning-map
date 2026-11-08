@@ -3,6 +3,8 @@ name: lesson-authoring
 description: Create or revise graph-first, interactive Chinese lessons on AI inference, GPU execution, robotics VLA and world models within this repository. Use when a topic is added or teaching content is updated.
 ---
 
+> V5维护先读AGENTS.md的V5优先规则及docs/curriculum-system-v5.md；新独立课使用统一course-registry与foundation模块，历史25门专用字段检查只适用于旧课。
+
 # Graph-first lesson authoring
 
 ## Goal

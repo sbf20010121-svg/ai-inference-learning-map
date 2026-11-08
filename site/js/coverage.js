@@ -1,102 +1,178 @@
-// 主流 AI 推理系统知识覆盖审计：有课程 ≠ 已掌握。公开资料，禁止提交内网细节。
-import {depthTopics,depthModules} from './depth-content.js';
-const T=new Set(depthTopics.map(t=>t.id));
-const mk=(id,title,module,lines,source)=>({id,title,module,source,items:lines.trim().split('\n').map(line=>{const [name,priority='P1',ref='']=line.split('|');return {name,priority,ref,group:id,module}})});
-export const coverage=[
- mk('models','LLM 模型与计算','model',`
-Transformer Block / 张量 Shape|P0|llm-block
-Prefill / Decode 计算形状|P0|llm-block
-GQA/MQA / KV Head 数量|P0|~llm-block
-RoPE / RMSNorm / SwiGLU|P0|fused-norm
-MoE Router / Expert / Dispatch|P0|moe-route
-量化模型与精度误差|P0|~gemm-tiling
-MLA / 压缩 KV 与吸收|P1|mla-kv
-线性注意力 / SSM / Mamba|P1|linear-state
-长上下文 / Sliding Window / 稀疏注意力|P1|~attention-tiling
-Logits / 温度 / Top-p / Top-k 采样|P1|
-`, 'https://docs.vllm.ai/en/latest/models/supported_models/'),
- mk('physical','视觉、机器人模型与世界模型','model',`
-ViT / 视觉 Patch / 编码器|P0|~vla-policy
-VLM 跨模态融合与预处理|P0|~vla-policy
-VLA Action Expert / Action Chunk|P0|vla-policy
-Diffusion / Flow Matching 动作生成|P0|vla-policy
-世界模型 / 状态与视频预测|P0|world-model
-DiT / 视频时空注意力|P1|~world-model
-模仿学习与 RL Policy 前向|P1|~vla-policy
-VLA 异步动作推理、延迟与控制|P1|~vla-policy
-点云 / 稀疏卷积 / 3D 感知|P2|
-`, 'https://huggingface.co/docs/lerobot/main/smolvla'),
- mk('serving','推理引擎与部署','engine',`
-vLLM V1 Scheduler / Token Budget|P0|vllm-scheduler
-Paged KV Cache / Block 分配|P0|kv-cache
-Prefix Caching / Chunked Prefill|P0|vllm-scheduler
-Continuous Batching / 抢占|P0|vllm-scheduler
-PD 分离 / KV Connector / 通信|P0|pd-disagg
-Speculative Decoding / MTP / 接受率|P0|spec-decode
-模型量化部署 / KV Quant / 装载|P0|quant-pipeline
-TP / PP / EP / DP 并行|P0|multi-gpu
-TTFT / ITL / P99 / SLO / Admission|P0|serving-slo
-在线请求回放与 Benchmark|P0|serving-slo
-数值正确性与输出质量回归|P0|~profiling
-vLLM / SGLang / DeepInfer / TensorRT-LLM|P1|frameworks
-长上下文 / Prompt 缓存 / 层级缓存|P1|~kv-cache
-服务弹性扩缩 / 多模型混部|P1|~serving-slo
-异步调度 / 多卡部署拓扑|P1|~multi-gpu
-`, 'https://docs.vllm.ai/en/latest/design/arch_overview/'),
- mk('compilation','编译、图优化与 Runtime','compiler',`
-PyTorch Eager / 图执行|P0|compiler-lowering
-TorchDynamo / FX / Graph Break|P0|compiler-lowering
-TorchInductor / 算子融合|P0|compiler-lowering
-Triton IR / Layout / Lowering|P0|triton-tiling
-PTX / SASS / 编译生成路径|P0|compiler-lowering
-CUDA Stream / Event / Graph|P0|runtime-graph
-动态 Shape / Autotuning / 缓存|P1|~triton-tiling
-TensorRT / ONNX / Engine 构建|P1|
-MLIR / LLVM / 编译后端|P1|~compiler-lowering
-CUDA Runtime 与 Driver 边界|P0|host-runtime
-融合合法性 / 精度语义|P0|~compiler-lowering
-`, 'https://docs.pytorch.org/docs/stable/torch.compiler.html'),
- mk('operators','GPU Kernel 与 Profiling','kernel',`
-GEMM / GEMV / Tile / Grouped GEMM|P0|gemm-tiling
-FlashAttention / Online Softmax|P0|attention-tiling
-Paged Attention / GQA / MLA Kernel|P0|~attention-tiling
-Norm / RoPE / 激活 / Reduction|P0|fused-norm
-FP8/FP4/INT8 量化和反量化|P0|quant-pipeline
-MoE Expert Grouped GEMM 与数据重排|P0|~moe-route
-CUDA Graph / Kernel Fusion / Launch Gap|P0|runtime-graph
-Roofline / 算术强度与访存字节|P0|profiling
-Nsight Systems / Compute / SASS|P0|profiling
-正确性、基准、统计与归因|P0|profiling
-Gather / Scatter / Top-p Sampling|P1|
-Conv / ViT / 稀疏操作|P1|~vla-policy
-`, 'https://docs.nvidia.com/nsight-compute/ComputeTriage/'),
- mk('platform','操作系统、部署与分布式','systems',`
-Linux 进程线程 / 同步 / 调度|P0|host-runtime
-虚拟内存 / Pinned / DMA / H2D|P0|host-runtime
-GPU Driver / CUDA Context / Runtime|P0|host-runtime
-NCCL Collective / AllReduce / All-to-All|P0|multi-gpu
-线上观测 / 资源规划 / 背压|P0|serving-slo
-NUMA / PCIe / Host Memory|P1|~host-runtime
-RDMA / GPUDirect / 网络拓扑|P1|~multi-gpu
-容器 / 驱动兼容 / GPU 部署环境|P1|
-分布式调度 / 任务隔离 / 自动化部署|P1|~serving-slo
-`, 'https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/'),
- mk('hardware','GPU 微架构与硬件资源','microarch',`
-SM / Warp / SMSP / 指令发射|P0|warp-issue
-Scoreboard / 数据依赖 / Stall|P0|warp-issue
-Tensor Core / MMA / tcgen05|P0|tensorcore-b200
-寄存器 / Shared / L1 / L2 / HBM|P0|memory-route
-TMA / Barrier / 异步搬运|P0|tensorcore-b200
-Coalescing / Bank Conflict / Spill|P0|memory-route
-Occupancy / Latency Hiding / 资源竞争|P0|warp-issue
-Block Cluster / Warpgroup|P1|~tensorcore-b200
-NVLink / NVSwitch / GPU 互连|P1|~multi-gpu
-功耗 / 时钟 / 温度与性能稳定性|P1|
-自研芯片与公开 B200 机制对照|P1|~warp-issue
-`, 'https://docs.nvidia.com/cuda/blackwell-tuning-guide/'),
+/** Scope-based review: a URL or topic ID alone never establishes teaching coverage. */
+import { allCourses, foundationById } from "./course-registry.js";
+import { depthModules } from "./depth-content.js";
+import { chaptersFor } from "./mechanism-curriculum.js";
+import { courseNotes } from "./course-notes.js";
+import { scopeReview } from "./coverage-review.js";
+const groups = [
+  ["models", "LLM模型与计算", "model"],
+  ["physical", "视觉、机器人与世界模型", "model"],
+  ["serving", "推理引擎与部署", "engine"],
+  ["compilation", "编译、图优化与Runtime", "compiler"],
+  ["operators", "GPU算子与性能", "kernel"],
+  ["platform", "系统与分布式", "systems"],
+  ["hardware", "GPU微架构", "microarch"],
 ];
-export const coverageItems=coverage.flatMap(g=>g.items);
-export const statusOf=i=>!i.ref?'missing':i.ref.startsWith('~')?'partial':T.has(i.ref)?'guided':'missing';
-export const statusLabels={guided:'已有机制课',partial:'只在关联课程涉及',missing:'尚缺深度课程'};
-export function auditSummary(items=coverageItems){const s={guided:0,partial:0,missing:0};for(const i of items)s[statusOf(i)]++;return s}
-export function validateCoverage(){const names=new Set();const mids=new Set(depthModules.map(m=>m.id));for(const i of coverageItems){if(names.has(i.name)||!mids.has(i.module)||!['P0','P1','P2'].includes(i.priority)||i.ref&&!T.has(i.ref.replace(/^~/,'')))throw Error('覆盖索引错误 '+i.name);names.add(i.name)}if(coverageItems.length<70)throw Error('课程覆盖索引不足');return true;}
+const physical = new Set([
+  "vla-policy",
+  "world-model",
+  "vision-patches",
+  "multimodal-bridge",
+  "observation-contract",
+  "action-representation",
+  "policy-families",
+  "robot-data",
+  "closed-loop",
+  "world-learning",
+  "diffusion-transformer",
+]);
+const groupFor = (c) =>
+  c.module === "model"
+    ? physical.has(c.id)
+      ? "physical"
+      : "models"
+    : {
+        engine: "serving",
+        compiler: "compilation",
+        kernel: "operators",
+        systems: "platform",
+        microarch: "hardware",
+      }[c.module];
+const built = allCourses.map((c) => {
+  const review = scopeReview[c.id],
+    group = groupFor(c);
+  return {
+    source: foundationById.get(c.id)?.notes.source || courseNotes[c.id]?.source,
+    name: review?.[0] || c.title,
+    priority: "P0",
+    ref: c.id,
+    group,
+    module: c.module,
+    state: review ? "guided" : "partial",
+    evidence: review
+      ? {
+          scope: review[0],
+          boundary: review[1],
+          chapters: chaptersFor(c.id).map((p) => p.id),
+          level: "页面机制与教学模型；非完整源码/实测认证",
+        }
+      : null,
+  };
+});
+const optional = [
+  {
+    name: "点云、3D稀疏算子与感知专项",
+    module: "model",
+    group: "physical",
+    priority: "P2",
+    state: "missing",
+    ref: "",
+    boundary: "机器人观测接口已讲，专项感知算法未建设",
+  },
+  {
+    name: "多租户缓存隔离、完整哈希与故障恢复",
+    module: "engine",
+    group: "serving",
+    priority: "P1",
+    state: "partial",
+    ref: "kv-cache",
+    boundary: "基础映射与引用已讲，专项实现仍未审计",
+  },
+  {
+    name: "MTP网络、树状推测与全分支缓存提交",
+    module: "engine",
+    group: "serving",
+    priority: "P1",
+    state: "partial",
+    ref: "spec-decode",
+    boundary: "已讲接受/拒绝概率，不宣称实现这些模型和多步分支",
+  },
+  {
+    name: "RDMA、GPUDirect与实际多节点通信后端",
+    module: "systems",
+    group: "platform",
+    priority: "P1",
+    state: "partial",
+    ref: "collective-topology",
+    boundary: "拓扑和通信量已讲，具体传输协议与实测未实现",
+  },
+  {
+    name: "完整语言前端、解析器和控制流优化实现",
+    module: "compiler",
+    group: "compilation",
+    priority: "P2",
+    state: "missing",
+    ref: "",
+    boundary: "推理所需IR基础已讲，完整传统编译器前端按需扩展",
+  },
+  {
+    name: "机器人完整运动学、动力学与底层控制设计",
+    module: "model",
+    group: "physical",
+    priority: "P2",
+    state: "missing",
+    ref: "",
+    boundary: "本版讲推理接口与闭环认知，未建设完整控制课程",
+  },
+  {
+    name: "训练反向、优化器与完整分布式训练",
+    module: "model",
+    group: "models",
+    priority: "P2",
+    state: "missing",
+    ref: "",
+    boundary: "仅讲理解推理机制所需的训练目标与边界",
+  },
+];
+export const coverageItems = [...built, ...optional];
+export const coverage = groups.map(([id, title, module]) => ({
+  id,
+  title,
+  module,
+  source: "https://github.com/sbf20010121-svg/ai-inference-learning-map",
+  items: coverageItems.filter((i) => i.group === id),
+}));
+export const statusOf = (i) =>
+  i.state === "guided"
+    ? i.evidence?.scope && i.evidence?.boundary && i.evidence?.chapters?.length
+      ? "guided"
+      : "partial"
+    : ["partial", "missing"].includes(i.state)
+      ? i.state
+      : "missing";
+export const statusLabels = {
+  guided: "限定机制课已建设",
+  partial: "相关基础已有，专项仍缺",
+  missing: "尚缺深度课程",
+};
+export function auditSummary(items = coverageItems) {
+  const out = { guided: 0, partial: 0, missing: 0 };
+  for (const i of items) out[statusOf(i)]++;
+  return out;
+}
+export function validateCoverage() {
+  const ids = new Set(allCourses.map((c) => c.id)),
+    names = new Set(),
+    modules = new Set(depthModules.map((m) => m.id));
+  for (const i of coverageItems) {
+    if (
+      names.has(i.name) ||
+      !modules.has(i.module) ||
+      !["P0", "P1", "P2"].includes(i.priority) ||
+      (i.ref && !ids.has(i.ref))
+    )
+      throw Error("Invalid audit entry " + i.name);
+    names.add(i.name);
+    if (
+      i.state === "guided" &&
+      (!i.evidence ||
+        !i.evidence.boundary ||
+        !i.evidence.chapters.length ||
+        i.evidence.chapters.some(
+          (id) => !chaptersFor(i.ref).some((c) => c.id === id),
+        ))
+    )
+      throw Error("Missing explicit mechanism evidence " + i.name);
+  }
+  return true;
+}

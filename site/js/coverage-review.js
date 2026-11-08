@@ -1,0 +1,175 @@
+/** Manual scope review, not inferred from the existence of a course link. */
+export const scopeReview = {
+  "llm-block": [
+    "GQA头、因果配对与投影/KV形状",
+    "仅限图中的层内形状案例；完整层另见transformer-layer",
+  ],
+  "moe-route": [
+    "路由、Token-expert身份、EP与加权合并",
+    "未审计生产通信重叠与所有路由变体",
+  ],
+  "vla-policy": [
+    "Flow监督、生成积分与动作队列",
+    "未运行已训练策略或真实机器人",
+  ],
+  "world-model": ["RSSM先验/后验与视频连接结构", "未实现完整世界模型训练"],
+  "vllm-scheduler": [
+    "跨轮Token预算与KV另约束",
+    "不把本课视为完整抢占；独立课kv-preemption补充",
+  ],
+  "kv-cache": [
+    "逻辑物理映射、共享引用、追加与回收",
+    "实际多租户隔离、缓存哈希实现仍需专项核验",
+  ],
+  "pd-disagg": ["KV交付完成条件与传输容量账本", "无真实Connector和网络测量"],
+  "serving-slo": ["到达/等待/响应时延与阈值满足率", "小样本不估计生产P99"],
+  "compiler-lowering": [
+    "编译执行全景、Mask与融合概览",
+    "明确为导论，不能代表整个编译领域",
+  ],
+  "triton-tiling": [
+    "Program责任、累加、边界与逻辑布局",
+    "无真实目标配置的Autotune实测",
+  ],
+  "runtime-graph": [
+    "Stream/Event次序、Replay与缓冲生命周期",
+    "不覆盖所有Capture限制与设备实现",
+  ],
+  "gemm-tiling": ["矩阵乘、输入重用与算术强度", "不把理论下界当设备吞吐"],
+  "attention-tiling": [
+    "逐Tile在线Softmax与IO组织",
+    "无完整低精度多头前/反向Kernel",
+  ],
+  profiling: ["关键路径、Amdahl与归因证据", "无真实Nsight采样"],
+  "host-runtime": ["异步数据所有权与双缓冲", "不能替代Linux进程/线程课程"],
+  "multi-gpu": ["基本Collective逐坐标语义", "不替代TP/PP、拓扑与实际通信后端"],
+  "warp-issue": [
+    "依赖、驻留/就绪/发射和隐藏等待",
+    "人造周期，不是硬件周期模拟",
+  ],
+  "memory-route": ["Lane地址覆盖与Shared显式重用", "不把覆盖量当真实DRAM事务"],
+  "tensorcore-b200": [
+    "SMEM/TMEM、异步完成与双缓冲",
+    "非合法MMA完整布局或可运行同步程序",
+  ],
+  "spec-decode": ["接受质量与拒绝重采样", "不代表MTP模型或全部多步推测实现"],
+  "quant-pipeline": [
+    "量化网格、范围与部署接口",
+    "格式精确网格另见lowbit-formats",
+  ],
+  "fused-norm": ["RMSNorm归约、RoPE旋转与SwiGLU门控", "不覆盖所有融合Kernel"],
+  "mla-kv": ["低秩内容项展开与吸收恒等式", "不是完整DeepSeek/FlashMLA实现"],
+  "linear-state": [
+    "Gated Delta更新、仿射与三角依赖",
+    "不代表所有线性注意力或完整WY实现",
+  ],
+  frameworks: ["框架比较的条件与长尾边界", "不是各框架完整实现课程"],
+  "tensor-address": ["坐标/Stride地址与视图别名", "正Stride稠密例"],
+  "ir-ssa": ["定义使用、独立计算与内存效应", "非完整控制流分析"],
+  "graph-capture": ["捕获区域与具体Guard复用条件", "非完整Dynamo解释器"],
+  "symbolic-shapes": ["输入序列、特化缓存和范围约束", "不声称复现自动泛化策略"],
+  "graph-rewrite": ["整数CSE、常量折叠与舍入反例", "非任意浮点重写许可"],
+  "fusion-legality": ["外部消费者与别名读写反例", "非完整效应/别名分析器"],
+  "loop-lowering": ["GEMM合法迭代点、分块与尾部", "非真实线程布局"],
+  "buffer-liveness": ["活跃区间与原位/复用约束", "未包含全部异步/条件分支"],
+  "gpu-layout": [
+    "相同Shape下的元素持有者变化",
+    "两Lane示意，不是真实Triton编码",
+  ],
+  "target-codegen": ["有限槽与活跃值、Spill读写", "无真实SASS和寄存器报告"],
+  "compile-cache": ["编译键条件与冷/热成本", "教学键，不是完整内部键"],
+  "compiler-evidence": ["产物、数值与系统时间的证据边界", "未做硬件优化实验"],
+  "token-embedding": [
+    "文本边界、查表与输出词表轴",
+    "自设词表，非真实Tokenizer输出",
+  ],
+  "transformer-layer": [
+    "残差、序列/特征轴与FFN扩缩维",
+    "独立子算例，不是完整模型实跑",
+  ],
+  "generation-state": ["已选择/已计算位置与终止", "普通自回归轨迹"],
+  "sampling-distribution": [
+    "温度、Top-p集合及概率归一",
+    "组合顺序需核对实际后端",
+  ],
+  "attention-patterns": ["单层窗口与跨层可达性", "不涵盖所有稀疏模型"],
+  "vision-patches": ["图像网格、展平与分辨率尺度", "方形可整除Patch"],
+  "multimodal-bridge": ["投影、接口配对域与缓存条件", "非所有VLM唯一结构"],
+  "state-families": ["累加、Delta与标量SSM的不同更新", "非完整Mamba/SSM课程"],
+  "request-lifecycle": [
+    "请求身份、取消与在途释放",
+    "手工生命周期，不是生产引擎仿真",
+  ],
+  "model-loading": ["文件/参数分片与容量账本", "无真实装载峰值测量"],
+  "batch-executor": ["变长打包、边界与Worker职责", "非完整后端元数据格式"],
+  "kv-preemption": [
+    "KV回收、Token保留与重计算恢复",
+    "固定教学策略，实际策略随版本变化",
+  ],
+  "async-engine": ["独立准备重叠与真实结果依赖", "人造CPU/GPU时刻"],
+  "backend-dispatch": [
+    "能力条件交集与有效实现选择",
+    "虚构能力表，不是产品支持声明",
+  ],
+  "admission-backpressure": [
+    "有界队列、接纳拒绝及统计边界",
+    "单服务台，不是连续Batch完整模型",
+  ],
+  "reduction-scan": ["归约树、前缀传播与中性填充", "整数状态，不预测硬件周期"],
+  "gather-scatter": ["索引身份、重复目的地与累加", "不保证并行浮点逐位确定"],
+  "paged-attention-kernel": [
+    "分页K/V读序、尾长与直接数值对照",
+    "标量头，非完整设备布局",
+  ],
+  "quantized-matmul": ["分组Scale与点积贡献", "无zero-point的整数例"],
+  "sampling-kernel": ["按行归一、CDF与随机选择", "不是大词表最快算法"],
+  "kernel-tuning": ["Tile覆盖、尾部浪费与合法搜索", "无实测配置排名"],
+  "process-threads": [
+    "地址空间、就绪/阻塞及读改写同步",
+    "不代表完整Linux调度器实现",
+  ],
+  "host-memory-pages": [
+    "虚实页、Pinned所有权与NUMA边界",
+    "页尺寸和拓扑为教学假设",
+  ],
+  "cuda-context": [
+    "Context资源归属与跨进程访问条件",
+    "未涵盖全部IPC/MPS/多Context模式",
+  ],
+  "tensor-parallel": ["TP切分轴与DP请求副本", "单GEMM分解，不是完整模型部署"],
+  "pipeline-parallel": ["前向Microbatch流水与空泡", "无训练反向或真实网络"],
+  "collective-topology": ["ring阶段语义与单向发送量", "不宣称NCCL固定选择ring"],
+  "deployment-compatibility": [
+    "容器/驱动/硬件条件与复现记录",
+    "未给出动态版本兼容门槛",
+  ],
+  "observation-contract": [
+    "采集时间、坐标变换与语义接口",
+    "二维示例，未实际标定",
+  ],
+  "action-representation": ["绝对/相对/增量和逆归一", "单维动作，不执行控制"],
+  "policy-families": ["调用依赖与重叠动作时间对齐", "非各策略全部网络实现"],
+  "robot-data": ["Episode窗口、标签与划分边界", "未运行Dataset训练"],
+  "closed-loop": ["干扰、反馈延迟与任务统计", "手工一维动态，无真实控制"],
+  "world-learning": [
+    "预测头、前向KL与梯度职责",
+    "未实现完整训练损失或Actor-Critic",
+  ],
+  "diffusion-transformer": [
+    "加噪反解与两条时间轴",
+    "未运行视频模型或完整Sampler",
+  ],
+  "gpu-execution": ["线程作用域、CTA/Warp与SM映射", "SM安排手工，不是设备拓扑"],
+  "shared-bank": ["Word到Bank映射、Padding与广播", "标量32-bit读的32Bank模型"],
+  "occupancy-resources": ["多资源最小驻留上限", "虚构设备，不含真实分配粒度"],
+  "measurement-stability": [
+    "冷启动、分布统计与设备状态",
+    "全部时间合成，无硬件归因",
+  ],
+  "engine-build": ["交换图、Profile与执行形状", "没有真实ONNX/Engine产物"],
+  "lowbit-formats": ["局部FP8正规网格、E2M1与Scale", "非所有特殊编码/块格式"],
+  "convolution-lowering": [
+    "窗口、Stride与逻辑im2col",
+    "单通道无dilation，不是实际物化保证",
+  ],
+};

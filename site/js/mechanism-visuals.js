@@ -1,3 +1,4 @@
+import { renderFoundationFigure } from "./foundation-figures.js";
 import {
   deltaTrace,
   deltaChunkSolve,
@@ -39,6 +40,9 @@ const f = (x) =>
       : Number(x.toFixed(3)).toString();
 const vec = (a) => "[" + a.map(f).join(", ") + "]";
 export const defaultLab = () => ({
+  case: 0,
+  step: 0,
+  pick: 0,
   token: 1,
   beta: 0.5,
   gamma: 1,
@@ -82,6 +86,9 @@ export const defaultLab = () => ({
   source: 0,
 });
 const choices = {
+  case: [0, 1, 2, 3],
+  step: [0, 1, 2, 3, 4, 5, 6],
+  pick: Array.from({ length: 32 }, (_, i) => i),
   token: [0, 1, 2, 3],
   beta: [0.5, 1],
   gamma: [0.8, 1],
@@ -2157,6 +2164,7 @@ export const figureKinds = new Set([
   "framework-latency",
 ]);
 export function renderMechanism(fig, s = defaultLab()) {
+  if (fig.startsWith("foundation/")) return renderFoundationFigure(fig, s);
   if (!figureKinds.has(fig)) throw Error(`Unknown mechanism figure: ${fig}`);
   if (fig.startsWith("delta-") || fig === "state-tiles" || fig === "state-cost")
     return linear(fig, s);

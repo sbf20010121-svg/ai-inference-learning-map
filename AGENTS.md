@@ -1,5 +1,13 @@
 # AI assistant working rules
 
+## V5 precedence — independent curriculum (2026-11-08)
+
+- 保持六大领域；`course-registry.js`是领域/单元/独立课的统一注册表。读`docs/curriculum-system-v5.md`。不得把领域缩为一个机制课，也不得用课内章节数代替领域覆盖。
+- 旧25门ID/笔记/进度语义不变；新54门用新ID，经统一阅读器、知识网络、导出/导入接入。旧导论已掌握只计该课。
+- 新课在`foundation-*.js`定义，计算在`foundation-numerics.js`，对象图在`foundation-figures.js`。本约定替代下文强制修改旧25门专属visual/code-tour/derivation表的要求。新课代码骨架不冒充真实源码审计。
+- 教学范围逐项写入`coverage-review.js`；有URL不等于已覆盖。公式按机制需要安排；图中坐标/尺寸/颜色须对应对象、身份或量，不能以文字框流水线凑图。
+- 当前完整浏览器审计为`scripts/audit-curriculum.cjs`和`scripts/audit-gateways.cjs`。只使用隔离浏览器及合成个人数据。工程/数值验证与真实GPU/源码版本/学习效果证据分别报告。
+
 ## V4 precedence — mechanism chapters (2026-11-08)
 
 用户已明确要求整体重构，禁止把所有专题强制塞入相同五步/七页/四阶段。本节替代下文历史版本中与之冲突的页面数量和独立研究页要求。
