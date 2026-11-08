@@ -39,25 +39,50 @@ export async function handleRequest(request,env,fetcher=fetch){
  const url=new URL(request.url);
  if(url.pathname==='/health')return asJson({service:'ai-learning-cloud-sync',ready:validateConfig(env).length===0});
  if(validateConfig(env).length)return asJson({error:'服务端尚未配置完成，请联系网站维护者'},503);
+
  if(url.pathname==='/auth/start'&&request.method==='GET'){
-   const state=randomState();const auth=new URL('https://github.com/login/oauth/authorize');
-   auth.searchParams.set('client_id',env.GH_OAUTH_CLIENT_ID);auth.searchParams.set('redirect_uri',url.origin+'/auth/callback');auth.searchParams.set('scope','read:user');auth.searchParams.set('state',state);
-   return redirect(auth.toString(),{'Set-Cookie':`atlas_oauth_state=${state}; Max-Age=600; Path=/auth; Secure; HttpOnly; SameSite=Lax`});
+   let phase='state_generation';
+   try {
+     const state=randomState();
+     phase='github_authorization_url';
+     const auth=new URL('https://github.com/login/oauth/authorize');
+     auth.searchParams.set('client_id',env.GH_OAUTH_CLIENT_ID);
+     auth.searchParams.set('redirect_uri',url.origin+'/auth/callback');
+     auth.searchParams.set('scope','read:user');
+     auth.searchParams.set('state',state);
+     phase='redirect_response';
+     return redirect(auth.toString(),{'Set-Cookie':`atlas_oauth_state=${state}; Max-Age=600; Path=/auth; Secure; HttpOnly; SameSite=Lax`});
+   } catch(error){
+     // Never log OAuth tokens, request query strings, or server-side secret values.
+     console.error('OAuth start exception',phase,error?.name||'Error',error?.message||'');
+     return asJson({error:'OAuth 登录初始化异常，请检查 Worker 日志',stage:phase},500);
+   }
  }
  if(url.pathname==='/auth/callback'&&request.method==='GET'){
-   const state=requestedCookie(request.headers.get('Cookie'),'atlas_oauth_state');
-   const code=url.searchParams.get('code'),returned=url.searchParams.get('state');
    const cleared={'Set-Cookie':'atlas_oauth_state=; Max-Age=0; Path=/auth; Secure; HttpOnly; SameSite=Lax'};
-   if(!code||!state||state!==returned||code.length>1000)return asJson({error:'GitHub 登录状态验证失败，请重新连接'},401,cleared);
-   const exchange=await fetcher('https://github.com/login/oauth/access_token',{method:'POST',headers:{'Accept':'application/json','Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({client_id:env.GH_OAUTH_CLIENT_ID,client_secret:env.GH_OAUTH_CLIENT_SECRET,code,redirect_uri:url.origin+'/auth/callback'}).toString()});
-   if(!exchange.ok)return asJson({error:'登录授权交换失败'},502,cleared);
-   let tokenData={};try{tokenData=await exchange.json()}catch{}
-   if(typeof tokenData.access_token!=='string')return asJson({error:'GitHub 未返回授权结果'},401,cleared);
-   const user=await githubJson('https://api.github.com/user',tokenData.access_token,'GET',null,fetcher);
-   if(!user.ok||user.value.login?.toLowerCase()!==env.ALLOWED_LOGIN.toLowerCase())return asJson({error:'此同步服务仅允许指定 GitHub 用户访问'},403,cleared);
-   const now=Math.floor(Date.now()/1000);
-   const session=await signToken({sub:user.value.login,aud:SESSION_AUDIENCE,iat:now,exp:now+6*3600},env.SESSION_HMAC_KEY);
-   return redirect(new URL(env.SITE_URL).toString()+'#cloud_auth='+encodeURIComponent(session),cleared);
+   let phase='state_validation';
+   try {
+     const state=requestedCookie(request.headers.get('Cookie'),'atlas_oauth_state');
+     const code=url.searchParams.get('code'),returned=url.searchParams.get('state');
+     if(!code||!state||state!==returned||code.length>1000)return asJson({error:'GitHub 登录状态验证失败，请重新连接'},401,cleared);
+     phase='github_token_exchange';
+     const exchange=await fetcher('https://github.com/login/oauth/access_token',{method:'POST',headers:{'Accept':'application/json','Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({client_id:env.GH_OAUTH_CLIENT_ID,client_secret:env.GH_OAUTH_CLIENT_SECRET,code,redirect_uri:url.origin+'/auth/callback'}).toString()});
+     if(!exchange.ok)return asJson({error:'登录授权交换失败'},502,cleared);
+     let tokenData={};try{tokenData=await exchange.json()}catch{}
+     if(typeof tokenData.access_token!=='string')return asJson({error:'GitHub 未返回授权结果'},401,cleared);
+     phase='github_user_lookup';
+     const user=await githubJson('https://api.github.com/user',tokenData.access_token,'GET',null,fetcher);
+     if(!user.ok||user.value.login?.toLowerCase()!==env.ALLOWED_LOGIN.toLowerCase())return asJson({error:'此同步服务仅允许指定 GitHub 用户访问'},403,cleared);
+     phase='session_signing';
+     const now=Math.floor(Date.now()/1000);
+     const session=await signToken({sub:user.value.login,aud:SESSION_AUDIENCE,iat:now,exp:now+6*3600},env.SESSION_HMAC_KEY);
+     phase='site_redirect';
+     return redirect(new URL(env.SITE_URL).toString()+'#cloud_auth='+encodeURIComponent(session),cleared);
+   }catch(error){
+     // Log only the non-secret stage and exception type; never the OAuth code or access token.
+     console.error('OAuth callback exception',phase,error?.name||'Error',error?.message||'');
+     return asJson({error:'OAuth 回调处理异常，请检查 Worker 日志',stage:phase},500,cleared);
+   }
  }
  if(url.pathname==='/api/snapshot'){
    const allow=cors(env,request);
