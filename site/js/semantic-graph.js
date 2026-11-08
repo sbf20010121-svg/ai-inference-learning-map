@@ -3,7 +3,7 @@
  * Curated nodes are always built from existing depthTopics. User insights are local,
  * explicit, exportable additions – never posted to GitHub without review.
  */
-import {depthTopics} from './depth-content.js';
+import {allCourses as depthTopics,foundationCourses} from './course-registry.js';
 import {courseNotes} from './course-notes.js';
 export const GRAPH_STORE='ai-inference-semantic-graph-v1';
 export const RELATION_TYPES={
@@ -52,6 +52,7 @@ export const curatedRelations=[
   ['tensorcore-b200','memory-route','accesses','矩阵流水线需要显式准备Tile与同步；Shared和Tensor Memory的角色不能当成自动Cache层。'],
   ['spec-decode','vllm-scheduler','accesses','候选验证改变本轮位置数与缓存需求；接受后仍需同步请求的已计算状态。']
 ].map(([from,to,type,why],i)=>({id:`cur-${i+1}`,from,to,type,why,origin:'curated'}));
+for(const c of foundationCourses)for(const [i,[from,why]] of c.prereqs.entries())curatedRelations.push({id:`course-pre-${c.id}-${i}`,from,to:c.id,type:'prerequisite',why,origin:'curated'});
 export const curatedNodes=depthTopics.map(t=>({id:t.id,title:t.title,summary:courseNotes[t.id]?.definition||t.summary,module:t.module,origin:'curated',status:'source'}));
 const CURATED_IDS=new Set(curatedNodes.map(n=>n.id));
 const SAFE_ID=/^mine-[a-z0-9-]{1,60}$/;

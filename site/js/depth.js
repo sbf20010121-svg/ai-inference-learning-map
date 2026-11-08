@@ -1,12 +1,15 @@
+import {
+  allCourses as depthTopics,
+  allCourseById as depthById,
+} from "./course-registry.js";
 /**
  * 深度知识图谱：主地图之下的二/三级机制与实验，不引入额外服务。
  * DOM 交互、离线小实验、学习记录；深度资料定义于 depth-content.js。
  */
 import {
   depthModules,
-  depthTopics,
+  depthTopics as legacyDepthTopics,
   depthPaths,
-  depthById,
   validateDepthData,
 } from "./depth-content.js";
 import { coverageHTML, auditState } from "./coverage-ui.js";
@@ -32,7 +35,7 @@ import {
 } from "./mechanism-curriculum.js";
 import { defaultLab, changeLab } from "./mechanism-visuals.js";
 validateDepthData();
-validateVisualKnowledge(depthTopics);
+validateVisualKnowledge(legacyDepthTopics);
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const esc = (v = "") =>
@@ -163,6 +166,7 @@ export function goDepth(id = "pd-disagg", level = "L2", chapter = "") {
   state.chapter = resolveChapter(id, rec, level, chapter);
   if (!state.mechanismLabs[id]) state.mechanismLabs[id] = defaultLab();
   const initial = chapterById(id, state.chapter);
+  if (initial?.initial) Object.assign(state.mechanismLabs[id], initial.initial);
   if (initial?.startIR !== undefined)
     state.mechanismLabs[id].ir = initial.startIR;
   if (initial?.startKV !== undefined)
@@ -237,6 +241,7 @@ function setMechanismChapter(id) {
   state.chapter = id;
   state.focusAnswer = null;
   const ch = chapterById(state.topic, id);
+  if (ch.initial) Object.assign(state.mechanismLabs[state.topic], ch.initial);
   if (ch.startIR !== undefined)
     state.mechanismLabs[state.topic].ir = ch.startIR;
   if (ch.startKV !== undefined)

@@ -3,6 +3,8 @@ name: knowledge-map-maintenance
 description: Maintain the six-module AI inference knowledge graph, lesson links, learner progress compatibility, and safe incremental versioning. Use when editing nodes, edges, navigation or learning plans.
 ---
 
+> V5维护先读AGENTS.md的V5优先规则及docs/curriculum-system-v5.md；新独立课使用统一course-registry与foundation模块，历史25门专用字段检查只适用于旧课。
+
 # Maintain the knowledge map
 
 ## Invariants

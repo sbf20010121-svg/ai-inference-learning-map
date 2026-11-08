@@ -114,3 +114,14 @@ test('production Worker fetch adapter must not interpret ExecutionContext as Git
    globalThis.fetch=originalFetch;
  }
 });
+
+
+test('v5 independent course records cross Worker protocol without changing legacy records',async()=>{
+ const mock=fakeGitHub(),token=await login(mock);
+ const next={...snapshot,depthProgress:{...snapshot.depthProgress,'tensor-address':{status:'review',note:'合成新课反馈',mechanismReading:{version:1,last:'alias',seen:['address','transpose','alias']}}}};
+ const put=await handleRequest(req('PUT','/api/snapshot',token,{sha:null,snapshot:next}),env,mock.fetcher);
+ assert.equal(put.status,200);
+ const got=await handleRequest(req('GET','/api/snapshot',token),env,mock.fetcher);
+ assert.equal(got.status,200);
+ assert.deepEqual((await got.json()).data,next);
+});
