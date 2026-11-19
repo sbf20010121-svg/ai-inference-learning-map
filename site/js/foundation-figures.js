@@ -1081,23 +1081,24 @@ function renderOtherFoundation(id, view, s) {
         );
       }
       const d = N.patchify(c ? 8 : 4, 2),
-        p = (s.pick || 0) % d.tokens;
+        p = (s.pick || 0) % d.tokens,
+        patchAt = (i, j) => Math.floor(i / 2) * (d.image[0].length / 2) + Math.floor(j / 2);
       return frame(
-        matrices(
+        '<div class="ff-patch-map">' + matrices(
           matrix(
             d.image,
-            "像素网格；格中是教学像素ID",
+            `原图：Patch${p} 的4个像素已高亮`,
             (i, j) =>
-              `owner-${(Math.floor(i / 2) * (c ? 4 : 2) + Math.floor(j / 2)) % 4}`,
+              patchAt(i, j) === p ? "selected ff-patch-selected" : "",
           ),
-          matrix([d.patches[p]], `Patch${p}按行展平的4元素`),
-        ) +
+          matrix([d.patches[p]], `同色像素按行展平：Patch${p}`, () => "selected ff-patch-selected"),
+        ) + '</div>' +
           metrics([
             ["Patch Token数", d.tokens],
             ["假设全局配对数", d.tokens * d.tokens],
             ["单通道Patch宽度", d.flatWidth],
           ]),
-        "每Patch2×2，ID保留具体像素身份。RGB还需合并通道维；配对规模只对应指定全局Attention部分。",
+        "强调色框选原图中同一个2×2区域，并在展开行中保留同样的4个数。格中数值是教学像素ID，展平只改变排列。RGB还需合并通道维；配对规模只对应指定全局Attention部分。",
         select(
           "图像边长",
           [

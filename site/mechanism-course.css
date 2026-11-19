@@ -404,6 +404,14 @@
   outline: 2px solid var(--primary);
   outline-offset: -2px;
 }
+.ff-patch-map .mech-grid > .ff-patch-selected {
+  background: var(--primary);
+  color: var(--surface);
+  font-weight: 700;
+}
+.ff-patch-map .ff-patch-selected small {
+  opacity: 1;
+}
 .mech-matrix.counter .mech-grid > span {
   background: color-mix(in srgb, var(--primary) 10%, var(--surface));
 }

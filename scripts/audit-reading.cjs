@@ -61,8 +61,9 @@ const fs = require("node:fs");
       await page.waitForSelector(".learning-contents");
       await page.locator('[data-mech-chapter="rounds"]').click();
       assert.equal(await page.locator(".learning-section").count(), chaptersFor("vllm-scheduler").length, "navigation must not hide the rest of the course");
-      const focus = await page.locator("#mechanismQuestion").evaluate(el => ({ active: document.activeElement === el, top: el.getBoundingClientRect().top, bottom: el.getBoundingClientRect().bottom, header: document.querySelector(".topbar").getBoundingClientRect().bottom }));
+      const focus = await page.locator("#mechanismQuestion").evaluate(el => ({ active: document.activeElement === el, top: el.getBoundingClientRect().top, bottom: el.getBoundingClientRect().bottom, numberTop: el.closest(".learning-section").querySelector(".learning-section-number").getBoundingClientRect().top, header: document.querySelector(".topbar").getBoundingClientRect().bottom }));
       assert.ok(focus.active && focus.top >= focus.header && focus.bottom < 1000, `${width}: chapter focus remains visible`);
+      assert.ok(focus.numberTop >= focus.header, `${width}: the chapter number is also below the fixed header`);
       await page.screenshot({ path: `test-results/v7-reading-navigation-viewport-${width}.png`, fullPage: false });
       await page.locator('[data-open-chapter-experiment="budget"]').click();
       assert.equal(await page.locator("#optionalMechanism").evaluate(panel => panel.open), true);
@@ -79,6 +80,9 @@ const fs = require("node:fs");
       for (const chapter of ["budget", "runner"]) {
         await page.locator(`[data-learning-chapter="${chapter}"]`).screenshot({ style: ".topbar { visibility: hidden !important; }", path: `test-results/v7-reading-dark-${chapter}-${width}.png` });
       }
+      await page.goto(`${base}#depth/vision-patches/L2`);
+      await page.waitForSelector('[data-learning-chapter="patches"]');
+      await page.locator('[data-learning-chapter="patches"]').screenshot({ style: ".topbar { visibility: hidden !important; }", path: `test-results/v7-reading-dark-vision-patches-${width}.png` });
       await page.goto(`${base}#curriculum/compiler`);
       await page.locator(".learning-foundations-guide>summary").click();
       await page.locator(".learning-foundation-item>summary").first().click();

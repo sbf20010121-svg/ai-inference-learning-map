@@ -243,7 +243,8 @@ function scrollLearningTarget(selector) {
   if (!target) return;
   const header = document.querySelector(".topbar");
   const headerBottom = header ? Math.max(0, header.getBoundingClientRect().bottom) : 0;
-  const top = target.getBoundingClientRect().top + window.scrollY - headerBottom - 22;
+  const anchor = target.closest(".learning-section")?.querySelector(".learning-section-number") || target;
+  const top = anchor.getBoundingClientRect().top + window.scrollY - headerBottom - 22;
   window.scrollTo({ top: Math.max(0, top), behavior: "instant" });
   target.focus({ preventScroll: true });
 }
