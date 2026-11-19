@@ -125,7 +125,7 @@ const fs = require("node:fs");
           }
         }
         await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
-        await page.locator(`[data-learning-chapter="${chapter}"]`).screenshot({ path: `test-results/v7-lesson-${course}-${chapter}-${width}.png` });
+        await page.locator(`[data-learning-chapter="${chapter}"]`).screenshot({ style: ".topbar { visibility: hidden !important; }", path: `test-results/v7-lesson-${course}-${chapter}-${width}.png` });
       }
     }
     await context.close();
@@ -167,8 +167,9 @@ const fs = require("node:fs");
         assert.equal(await schedulerPage.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, `${width}/scheduler/${label}: page overflow`);
         await schedulerPage.waitForFunction(() => !document.querySelector("#toast") || getComputedStyle(document.querySelector("#toast")).opacity === "0");
         await schedulerPage.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
-        const panel = await schedulerPage.locator("#focusPanel").count() ? schedulerPage.locator("#focusPanel") : schedulerPage.locator(".mg-lab");
-        await panel.screenshot({ path: `test-results/v7-scheduler-${label}-${width}.png` });
+        const readerPanel = schedulerPage.locator("#focusPanel");
+        const panel = await readerPanel.isVisible() ? readerPanel : schedulerPage.locator(".mg-lab");
+        await panel.screenshot({ style: ".topbar { visibility: hidden !important; }", path: `test-results/v7-scheduler-${label}-${width}.png` });
       };
       let view = await open("requests");
       assert.deepEqual(await states(view, "before"), [{ id: "A", computed: 6, promptPending: 0, blocks: 2 }, { id: "B", computed: 0, promptPending: 6, blocks: 0 }, { id: "C", computed: 0, promptPending: 4, blocks: 0 }]);

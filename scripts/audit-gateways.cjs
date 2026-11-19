@@ -78,7 +78,7 @@ const assert = require("node:assert/strict");
       }
       await fit();
       await p.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
-      await details.screenshot({
+      await details.screenshot({ style: ".topbar { visibility: hidden !important; }",
         path: `test-results/${width}-math-${id}.png`,
       });
       mathEvidence.push({ width, course: id, chapter: chapter.id, formulas: formulaCount, expanded: true });

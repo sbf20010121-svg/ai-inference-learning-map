@@ -502,7 +502,7 @@ Object.assign(modelTeaching, {
       ]},
       correction: { title: "先读旧预测，再写目标与预测的差", blocks: [
         p("直接把目标 Value 反复累加，会让同一 Key 的旧关联不断叠上去。Delta Rule 的做法是先用当前状态预测这个 Key 应该读出什么，再只写入目标与旧预测之间的差。这个差就是残差 δ。"),
-        math("无遗忘门时的 Delta 纠错", '<mtable columnalign="left"><mtr><mtd><mi>δ</mi><mo>=</mo><mi>v</mi><mo>−</mo><msubsup><mi>S</mi><mtext>old</mtext><mi>T</mi></msubsup><mi>k</mi></mtd></mtr><mtr><mtd><msub><mi>S</mi><mtext>new</mtext></msub><mo>=</mo><msub><mi>S</mi><mtext>old</mtext></msub><mo>+</mo><mi>β</mi><mi>k</mi><msup><mi>δ</mi><mi>T</mi></msup></mtd></mtr></mtable>', [["Sold、Snew", "更新前后的 K×V 状态。"], ["k、v", "K 维写入 Key 与 V 维目标 Value，均为列向量。"], ["δ", "V 维列残差；目标减去当前状态对这个 Key 的预测。"], ["β", "本次写入强度，无量纲。"]], "对同一个单位 Key 读回，新预测等于旧预测加 β 倍残差。因此 β=1 时可以把该 Key 的当前预测对准目标；若 kᵀk 不等于 1，这个结论不能直接照搬。", ["标量 Key=1，旧预测为 2，新目标为 4。", "残差是 4−2=2；β=1 时只补这 2。", "新预测变为 4，而直接累加目标会变为 6。"]),
+        math("无遗忘门时的 Delta 纠错", '<mtable columnalign="left"><mtr><mtd><mi>δ</mi><mo>=</mo><mi>v</mi><mo>−</mo><msubsup><mi>S</mi><mtext>old</mtext><mi>T</mi></msubsup><mi>k</mi></mtd></mtr><mtr><mtd><msub><mi>S</mi><mtext>new</mtext></msub><mo>=</mo><msub><mi>S</mi><mtext>old</mtext></msub><mo>+</mo><mi>β</mi><mi>k</mi><msup><mi>δ</mi><mi>T</mi></msup></mtd></mtr></mtable>', [["Sold、Snew", "更新前后的 K×V 状态。"], ["k、v", "K 维写入 Key 与 V 维目标 Value，均为列向量。"], ["δ", "V 维列残差；目标减去当前状态对这个 Key 的预测。"], ["β", "本次写入强度，无量纲。"]], "对同一个长度为 1 的 Key（kᵀk=1）读回，新预测等于旧预测加 β 倍残差。因此 β=1 时可以把该 Key 的当前预测对准目标；若 kᵀk 不等于 1，这个结论不能直接照搬。", ["标量 Key=1，旧预测为 2，新目标为 4。", "残差是 4−2=2；β=1 时只补这 2。", "新预测变为 4，而直接累加目标会变为 6。"]),
         p("纠正当前 Key 的预测不意味着所有别的 Key 都完全不受影响。若不同 Key 的方向不正交，它们可能读到同一更新。这是关联状态的结构性约束，不是简单的数组赋值错误。"),
       ]},
       gate: { title: "遗忘先作用于旧状态，再计算残差", blocks: [
@@ -670,7 +670,7 @@ Object.assign(modelTeaching, {
       ]},
       projection: { title: "像素数值经过线性组合，形成视觉特征", blocks: [
         p("对每个展平的 Patch，模型使用同一组投影参数，把像素分量组合成隐藏向量。一个输出分量可以同时依赖块内多个像素，因此改动像素会改变投影结果。这与文本 Embedding 按离散 ID 取行是不同的输入操作。"),
-        math("Patch 投影与形状变化", '<mi>Z</mi><mo>=</mo><mi>X</mi><mi>W</mi><mo>+</mo><mi>b</mi>', [["X", "N×D 的 Patch 矩阵，每行是一块展平后的像素。"], ["W", "D×E 的投影权重；E 是视觉隐藏宽度。"], ["b", "E 维偏置，按行广播；教学小例可取零。"], ["Z", "N×E 的视觉特征矩阵。"]], "矩阵乘沿像素分量 D 求和，保留 Patch 行数 N。教学例 [0,1,4,5] 的两个输出分别取第 1 与第 3 分量之和、第 2 与第 4 分量之和，得到 [4,6]；把最后的 5 改成 9，输出变成 [4,10]。"),
+        math("Patch 投影与形状变化", '<mi>Z</mi><mo>=</mo><mi>X</mi><mi>W</mi><mo>+</mo><mi>b</mi>', [["X", "N×D 的 Patch 矩阵，每行是一块展平后的像素。"], ["W", "D×E 的投影权重；E 是视觉隐藏宽度。"], ["b", "E 维偏置，把同一个偏置向量加到每一行；教学小例可取零。"], ["Z", "N×E 的视觉特征矩阵。"]], "矩阵乘沿像素分量 D 求和，保留 Patch 行数 N。教学例 [0,1,4,5] 的两个输出分别取第 1 与第 3 分量之和、第 2 与第 4 分量之和，得到 [4,6]；把最后的 5 改成 9，输出变成 [4,10]。"),
         p("投影后还需要表示空间位置，使网络能区分同一内容出现在左上还是右下。位置编码可以通过相加或其它结构进入模型，具体方式依架构而定；序列行号本身不会自动成为网络理解的二维坐标。"),
       ]},
       resolution: { title: "分辨率同时改变两条空间轴", blocks: [

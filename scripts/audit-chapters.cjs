@@ -164,7 +164,7 @@ const assert = require("node:assert/strict");
         ) {
           await page.waitForFunction(() => { const toast = document.querySelector("#toast"); return !toast || (!toast.classList.contains("show") && getComputedStyle(toast).opacity === "0"); });
           await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
-          await page.locator(`[data-learning-chapter="${ch.id}"]`).screenshot({
+          await page.locator(`[data-learning-chapter="${ch.id}"]`).screenshot({ style: ".topbar { visibility: hidden !important; }",
             path: `test-results/v4-${t.id}-${ch.id}.png`,
           });
         }

@@ -59,6 +59,8 @@
 .learning-figure{margin:26px 0;min-width:0}
 .learning-figure>figcaption{font-size:14px;line-height:1.85;color:var(--muted);margin-top:12px}
 .learning-static-mechanism{min-width:0;max-width:100%;overflow-x:auto}
+.learning-static-mechanism .mech-time-axis small{white-space:nowrap;overflow-wrap:normal;line-height:1.3}
+.learning-wide-hint{display:none;font-size:13px;line-height:1.8;color:var(--muted);margin:0 0 8px}
 .learning-static-mechanism .mech-figure{margin:0;padding:18px}
 .learning-static-mechanism .static-figure-label{display:inline-block;cursor:default}
 .learning-static-mechanism .mech-kv-logical .static-figure-label{padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface)}
@@ -82,6 +84,7 @@
 .learning-reading-guide{max-width:900px;font-size:16px;line-height:1.9;margin:22px 0}
 .learning-reading-guide p+p{margin-top:10px}
 @media(max-width:850px){
+ .learning-wide-hint{display:block}
  .learning-course-layout{grid-template-columns:minmax(0,1fr);gap:18px}
  .learning-contents{display:flex;gap:6px;max-width:100%;padding:4px 0 15px;border-bottom:1px solid var(--border)}
  .learning-contents-label{display:none}
