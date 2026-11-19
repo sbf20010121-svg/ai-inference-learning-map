@@ -62,6 +62,7 @@ const assert = require("node:assert/strict");
         },
         { id, chapter: chapter.id, figure: chapter.figure, hash },
       );
+      await p.locator("#optionalMechanism > summary").click();
       const details = p.locator("#focusReader details.mechanism-math");
       assert.equal(await details.count(), 1, `${id}/${chapter.id}: one formula panel`);
       assert.equal(await details.evaluate((el) => el.open), false, `${id}/${chapter.id}: formula starts collapsed`);
@@ -77,9 +78,8 @@ const assert = require("node:assert/strict");
       }
       await fit();
       await p.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
-      await p.screenshot({
+      await details.screenshot({
         path: `test-results/${width}-math-${id}.png`,
-        fullPage: true,
       });
       mathEvidence.push({ width, course: id, chapter: chapter.id, formulas: formulaCount, expanded: true });
     }

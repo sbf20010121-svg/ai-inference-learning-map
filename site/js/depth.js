@@ -176,6 +176,8 @@ export function goDepth(id = "pd-disagg", level = "L2", chapter = "") {
     localStorage.setItem(RESUME_STORE, id);
   } catch {}
   renderDepthAtlas();
+  if (level === "L3" || level === "L4") scrollLearningTarget("#optionalMechanism > summary");
+  else if (chapter) scrollLearningTarget("#mechanismQuestion");
 }
 const toHash = (id, level = "L2") => {
   location.hash = "depth/" + id + "/" + level;
@@ -236,9 +238,19 @@ function markMechanismSeen() {
   state.progress[state.topic] = rec;
   save();
 }
+function scrollLearningTarget(selector) {
+  const target = document.querySelector(selector);
+  if (!target) return;
+  const header = document.querySelector(".topbar");
+  const headerBottom = header ? Math.max(0, header.getBoundingClientRect().bottom) : 0;
+  const top = target.getBoundingClientRect().top + window.scrollY - headerBottom - 22;
+  window.scrollTo({ top: Math.max(0, top), behavior: "instant" });
+  target.focus({ preventScroll: true });
+}
 function setMechanismChapter(id) {
   if (!chapterById(state.topic, id)) return;
   state.chapter = id;
+  state.level = "L2";
   state.focusAnswer = null;
   const ch = chapterById(state.topic, id);
   if (ch.initial) Object.assign(state.mechanismLabs[state.topic], ch.initial);
@@ -249,7 +261,7 @@ function setMechanismChapter(id) {
   markMechanismSeen();
   history.replaceState(null, "", `#depth/${state.topic}/L2/${id}`);
   showFocus();
-  document.querySelector("#mechanismQuestion")?.focus({ preventScroll: true });
+  scrollLearningTarget("#mechanismQuestion");
 }
 function refreshMechanism() {
   const y = window.scrollY;
@@ -261,12 +273,12 @@ function refreshMechanism() {
       : focused?.hasAttribute("data-f-retry")
         ? '[data-f-answer="0"]'
         : null;
-  const open = [...document.querySelectorAll(".mechanism-reader details[open]")]
-    .map((d) => d.className)
-    .filter(Boolean);
+  const open = [...document.querySelectorAll(".mechanism-reader details")]
+    .map((d, i) => d.open ? i : -1).filter((i) => i >= 0);
   renderDepthAtlas();
-  for (const cls of open) {
-    const el = document.querySelector("." + cls.split(" ").join("."));
+  const details = [...document.querySelectorAll(".mechanism-reader details")];
+  for (const index of open) {
+    const el = details[index];
     if (el) el.open = true;
   }
   window.scrollTo({ top: y, behavior: "instant" });
@@ -274,6 +286,18 @@ function refreshMechanism() {
     document.querySelector(identity)?.focus({ preventScroll: true });
 }
 function handleFocusClick(el) {
+  if (el.hasAttribute("data-reading-top")) {
+    scrollLearningTarget("#learningCourseStart h1");
+    return true;
+  }
+  if (el.hasAttribute("data-open-chapter-experiment")) {
+    const id = el.dataset.openChapterExperiment;
+    if (id !== state.chapter) setMechanismChapter(id);
+    const panel = document.querySelector("#optionalMechanism");
+    if (panel) panel.open = true;
+    scrollLearningTarget("#experimentQuestion");
+    return true;
+  }
   if (el.hasAttribute("data-mech-chapter")) {
     setMechanismChapter(el.dataset.mechChapter);
     return true;
@@ -752,6 +776,7 @@ export function renderDepthAtlas() {
       variant: state.variant,
       sourceIndex: state.sourceIndex,
       answer: state.focusAnswer,
+      openExperiment: state.level === "L3" || state.level === "L4",
       records: state.progress,
       moeToken: state.moeToken,
       moeStage: state.moeStage,

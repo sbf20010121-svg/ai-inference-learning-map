@@ -51,6 +51,7 @@ jobs:
           trap 'kill "$atlas_server_pid"' EXIT
           curl --fail --silent --retry 6 --retry-connrefused --retry-delay 1 http://127.0.0.1:5173/ > /dev/null
           kill -0 "$atlas_server_pid"
+          node scripts/audit-reading.cjs
           node scripts/audit-curriculum.cjs
           node scripts/audit-chapters.cjs
           node scripts/audit-gateways.cjs

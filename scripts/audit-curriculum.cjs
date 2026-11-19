@@ -92,6 +92,8 @@ const assert = require("node:assert/strict");
               ?.dataset.mechChapter === id,
           ch.id,
         );
+        // The legacy calculation is now an explicitly optional appendix.
+        await page.locator("#optionalMechanism").evaluate(panel => { panel.open = true; });
         assert.equal(
           await page.locator(".mechanism-lab").getAttribute("data-mechanism"),
           ch.figure,
@@ -175,9 +177,8 @@ const assert = require("node:assert/strict");
         ) {
           await page.waitForFunction(() => { const toast = document.querySelector("#toast"); return !toast || (!toast.classList.contains("show") && getComputedStyle(toast).opacity === "0"); });
           await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
-          await page.screenshot({
+          await page.locator(`[data-learning-chapter="${ch.id}"]`).screenshot({
             path: `test-results/v5-${t.id}-${ch.id}.png`,
-            fullPage: true,
           });
         }
       }
@@ -236,6 +237,7 @@ const assert = require("node:assert/strict");
     await page.locator(".mechanism-record summary").click();
     assert.equal(await page.locator("#focusNote").inputValue(), old.note);
     await page.locator("#focusNote").fill(old.note + "；新版追加");
+    await page.locator("#optionalMechanism").evaluate(panel => { panel.open = true; });
     await page.locator('[data-mech-key="beta"][data-mech-value="1"]').click();
     assert.ok(await page.locator("#focusNote").isVisible());
     assert.equal(
@@ -247,7 +249,7 @@ const assert = require("node:assert/strict");
     await page.keyboard.press("Enter");
     await page.waitForFunction(() => location.hash.endsWith("/kernel"));
     await page.reload();
-    await page.waitForSelector(".mechanism-chapter");
+    await page.waitForSelector(".learning-section");
     assert.equal(
       await page
         .locator('[data-mech-chapter][aria-current="step"]')
@@ -313,7 +315,7 @@ const assert = require("node:assert/strict");
     await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
     await page.screenshot({
       path: `test-results/v5-${width}-dark.png`,
-      fullPage: true,
+      fullPage: false,
     });
     await page.locator(".mechanism-catalog > summary").click();
     assert.equal(
@@ -352,7 +354,7 @@ const assert = require("node:assert/strict");
       ["research-expansion.html?topic=vla", "vla-policy"],
     ]) {
       await page.goto(base + url);
-      await page.waitForSelector(".mechanism-chapter");
+      await page.waitForSelector(".learning-section");
       assert.ok(
         page.url().includes(`/depth/${target}/`) ||
           page.url().includes(`#depth/${target}/`),

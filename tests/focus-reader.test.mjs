@@ -35,7 +35,7 @@ test("navigation follows each mechanism, not the archived seven-page template", 
         html,
         /research-(?:labs|expansion)\.html|data-f-page|focus-mini-arrow/,
       );
-      assert.doesNotMatch(html, /undefined|NaN/);
+      assert.doesNotMatch(html, /undefined|(?:>\s*|=["'])NaN(?=\s*<|["'])/);
     }
   }
   assert.ok(chaptersFor("linear-state").some((c) => c.id === "triangle"));

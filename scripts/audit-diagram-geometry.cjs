@@ -21,6 +21,7 @@ const assert = require("node:assert/strict");
           figure,
         ch.figure,
       );
+      await p.locator("#optionalMechanism").evaluate(panel => { panel.open = true; });
       for (let variant = -1; variant < 4; variant++) {
         if (variant >= 0)
           await p.evaluate(
@@ -39,7 +40,7 @@ const assert = require("node:assert/strict");
             },
             { figure: ch.figure, initial: ch.initial, variant },
           );
-        const r = await p.locator("svg.ff-svg").evaluateAll((svgs) =>
+        const r = await p.locator(".mechanism-lab svg.ff-svg").evaluateAll((svgs) =>
           svgs.map((svg) => {
             const view = svg.viewBox.baseVal;
             const text = [...svg.querySelectorAll("text")].map((n) => ({

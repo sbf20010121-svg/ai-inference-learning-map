@@ -111,20 +111,21 @@ const fs = require("node:fs");
         const expected = chaptersFor(course).find(ch => ch.id === chapter);
         await page.waitForFunction(([id, figure]) => document.querySelector('[data-mech-chapter][aria-current="step"]')?.dataset.mechChapter === id && document.querySelector(".mechanism-lab")?.dataset.mechanism === figure, [chapter, expected.figure]);
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, `${width}/${route}: screenshot route overflow`);
+        await page.locator("#optionalMechanism").evaluate(panel => { panel.open = true; });
         if (width === 360) {
-          const records = page.locator(".es-record-list");
+          const records = page.locator(".mechanism-lab .es-record-list");
           if (await records.count()) {
             assert.ok(await records.isVisible(), `${route}: mobile records must be displayed`);
             const fieldsFit = await records.locator("dd").evaluateAll(fields => fields.length > 0 && fields.every(el => { const b = el.getBoundingClientRect(); return b.width > 0 && b.left >= 0 && b.right <= innerWidth + 1; }));
             assert.ok(fieldsFit, `${route}: every mobile record value must be horizontally visible`);
           }
           if (route === "serving-slo/metrics") {
-            const renderedSize = await page.locator(".es-wide-scroll svg text").first().evaluate(el => parseFloat(getComputedStyle(el).fontSize) * Math.abs(el.getScreenCTM().a));
+            const renderedSize = await page.locator(".mechanism-lab .es-wide-scroll svg text").first().evaluate(el => parseFloat(getComputedStyle(el).fontSize) * Math.abs(el.getScreenCTM().a));
             assert.ok(renderedSize >= 12, "mobile SLO timestamps must retain readable text");
           }
         }
         await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
-        await page.screenshot({ path: `test-results/v6-lesson-${course}-${chapter}-${width}.png`, fullPage: true });
+        await page.locator(`[data-learning-chapter="${chapter}"]`).screenshot({ path: `test-results/v7-lesson-${course}-${chapter}-${width}.png` });
       }
     }
     await context.close();
@@ -141,10 +142,11 @@ const fs = require("node:fs");
         await schedulerPage.goto(`${base}#depth/vllm-scheduler/L2/${chapter}`);
         const expected = chaptersFor("vllm-scheduler").find(ch => ch.id === chapter);
         await schedulerPage.waitForFunction(([id, figure]) => document.querySelector('[data-mech-chapter][aria-current="step"]')?.dataset.mechChapter === id && document.querySelector(".mechanism-lab")?.dataset.mechanism === figure, [chapter, expected.figure]);
+        await schedulerPage.locator("#optionalMechanism").evaluate(panel => { panel.open = true; });
         await choose("budget", 8);
         await choose("capacity", 16);
         await choose("round", 0);
-        const view = schedulerPage.locator(`[data-scheduler-view="${expected.figure}"]`);
+        const view = schedulerPage.locator(`.mechanism-lab [data-scheduler-view="${expected.figure}"]`);
         await view.waitFor({ state: "visible" });
         const intro = schedulerPage.locator(".mechanism-lab .scheduler-scenario");
         assert.ok(await intro.isVisible(), `${width}/${chapter}: initial request identities must be visible`);
@@ -165,7 +167,8 @@ const fs = require("node:fs");
         assert.equal(await schedulerPage.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, `${width}/scheduler/${label}: page overflow`);
         await schedulerPage.waitForFunction(() => !document.querySelector("#toast") || getComputedStyle(document.querySelector("#toast")).opacity === "0");
         await schedulerPage.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
-        await schedulerPage.screenshot({ path: `test-results/v6-scheduler-${label}-${width}.png`, fullPage: true });
+        const panel = await schedulerPage.locator("#focusPanel").count() ? schedulerPage.locator("#focusPanel") : schedulerPage.locator(".mg-lab");
+        await panel.screenshot({ path: `test-results/v7-scheduler-${label}-${width}.png` });
       };
       let view = await open("requests");
       assert.deepEqual(await states(view, "before"), [{ id: "A", computed: 6, promptPending: 0, blocks: 2 }, { id: "B", computed: 0, promptPending: 6, blocks: 0 }, { id: "C", computed: 0, promptPending: 4, blocks: 0 }]);
@@ -212,7 +215,7 @@ const fs = require("node:fs");
       for (const [step, expected] of [[0, [0, 0, 0, 8]], [2, [1, 1, 3, 3]], [3, [1, 1, 1, 5]]]) {
         await schedulerPage.evaluate(async (step) => {
           const { mechanismFigure } = await import("./js/mechanism-studio.js");
-          document.querySelector("#focusPanel").innerHTML = '<h2 id="mechanismQuestion">兼容机制图组件验收 · 主课程同一示例</h2>' + mechanismFigure("vllm-scheduler", step, 0);
+          document.querySelector("#focusPanel").innerHTML = '<h2 id="legacyExperimentQuestion">兼容机制图组件验收 · 主课程同一示例</h2>' + mechanismFigure("vllm-scheduler", step, 0);
         }, step);
         const component = schedulerPage.locator("#focusPanel .m16-compact-figure");
         assert.ok(await component.isVisible());
