@@ -22,6 +22,7 @@
   <link rel="stylesheet" href="./cloud-sync.css" />
   <link rel="stylesheet" href="./mechanism-course.css" />
   <link rel="stylesheet" href="./curriculum.css" />
+  <link rel="stylesheet" href="./system-spine.css" />
   <script type="module" src="./js/app.js"></script>
 </head>
 <body>
@@ -33,6 +34,7 @@
     </div>
     <nav class="top-nav" aria-label="主导航">
       <button class="tab is-active" id="topMap" type="button" aria-current="page">知识地图</button>
+      <button class="tab" id="topSpine" type="button">系统主线</button>
       <button class="tab" id="topDepth" type="button">系统课程</button>
       <button class="tab" id="topNetwork" type="button">知识网络</button>
       <button class="tab" id="topPath" type="button">学习路径</button>
@@ -92,6 +94,7 @@
       <section id="depthView" class="depth-view" hidden><div id="depthContent"></div></section>
       <section id="lessonView" class="lesson-view" hidden><div id="lessonContent"></div></section>
       <section id="pathView" class="path-view" hidden><div id="pathContent"></div></section>
+      <section id="spineView" class="spine-view" hidden><div id="spineContent"></div></section>
     </main>
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
