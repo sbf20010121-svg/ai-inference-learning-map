@@ -73,15 +73,15 @@
 @media(max-width:750px){.theory-lanes{grid-template-columns:1fr;gap:9px}.theory-transfer{display:flex;flex-direction:row;justify-content:center}.theory-transfer>b{transform:rotate(90deg)}.theory-schedule,.theory-kv-grid,.theory-softmax{grid-template-columns:1fr}.theory-kv-grid .theory-wide{grid-column:auto}.theory-head-map{grid-template-columns:1fr}.theory-head-map .theory-mapping,.theory-head-map>div:last-child{grid-column:auto}.theory-vars dl>div{grid-template-columns:75px 1fr}.theory-vars small{grid-column:2}.theory-embedded,.theory-worked{padding:13px}.theory-formula-code{flex-direction:column;align-items:flex-start}}
 /* In the focused reader, show the worked mechanism before long navigation chrome. */
 @media(max-width:590px){
- body:has(#focusReader) .topbar{height:54px;min-height:54px;padding:0 12px;gap:10px}
- body:has(#focusReader) .top-nav{display:none}
- body:has(#focusReader) .brand{min-width:0;gap:8px}
- body:has(#focusReader) .brand-logo{width:29px;height:29px}
- body:has(#focusReader) .brand-logo svg{width:22px;height:22px}
- body:has(#focusReader) .brand-name strong{font-size:13px}
- body:has(#focusReader) .brand-name span{display:none}
- body:has(#focusReader) .top-actions{gap:5px}
- body:has(#focusReader) .top-actions .version{display:none}
+ body:has(#depthView:not([hidden]) #focusReader) .topbar{height:54px;min-height:54px;padding:0 12px;gap:10px}
+ body:has(#depthView:not([hidden]) #focusReader) .top-nav{display:none}
+ body:has(#depthView:not([hidden]) #focusReader) .brand{min-width:0;gap:8px}
+ body:has(#depthView:not([hidden]) #focusReader) .brand-logo{width:29px;height:29px}
+ body:has(#depthView:not([hidden]) #focusReader) .brand-logo svg{width:22px;height:22px}
+ body:has(#depthView:not([hidden]) #focusReader) .brand-name strong{font-size:13px}
+ body:has(#depthView:not([hidden]) #focusReader) .brand-name span{display:none}
+ body:has(#depthView:not([hidden]) #focusReader) .top-actions{gap:5px}
+ body:has(#depthView:not([hidden]) #focusReader) .top-actions .version{display:none}
  .focus-utility{margin:0 0 8px}
  .focus-utility [data-f-reference]{display:none}
  .focus-header{padding:12px 12px 10px}

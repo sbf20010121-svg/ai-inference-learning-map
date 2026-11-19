@@ -825,7 +825,7 @@ function attention(fig, s) {
       s,
     ) +
     figure(
-      `${scores}<div class="mech-softmax-read">${Array.from({ length: 4 }, (_, i) => `<span class="${i < s.tile * 2 ? "read" : ""}">K${i} / V${i}</span>`).join("")}</div>${
+      `${scores}${values}<div class="mech-softmax-read">${Array.from({ length: 4 }, (_, i) => `<span class="${i < s.tile * 2 ? "read" : ""}">K${i} / V${i}</span>`).join("")}</div>${
         s.tile === 2
           ? `<div class="mech-contribution"><div><strong>旧贡献 × α=${f(v.alpha)}</strong>${metrics(
               [

@@ -49,12 +49,12 @@ function bars(rows, label, max = null) {
 function probability(rows, label) {
   return bars(rows, label, 1);
 }
-function timeline(rows, max, label = "教学节拍") {
-  const ticks = Array.from(
+function timeline(rows, max, label = "教学节拍", tickValues = null) {
+  const ticks = tickValues || Array.from(
     { length: Math.min(max + 1, 17) },
     (_, i) => (i * max) / Math.min(max, 16),
   );
-  return `<div class="mech-scroll"><div class="mech-timeline"><div class="mech-time-axis"><span>${e(label)}</span><div>${ticks.map((t) => `<small style="left:${(t / max) * 100}%">${f(t)}</small>`).join("")}</div></div>${rows.map(([name, segments]) => `<div class="mech-time-row"><strong>${e(name)}</strong><div>${segments.map((v, i) => `<span class="owner-${v.color ?? i % 4}" style="left:${(v.start / max) * 100}%;width:${((v.end - v.start) / max) * 100}%" aria-label="${e(v.label)}：${v.start}至${v.end}${e(label)}">${e(v.label)}</span>`).join("")}</div></div>`).join("")}</div></div>`;
+  return `<div class="mech-scroll"><div class="mech-timeline"><div class="mech-time-axis"><span>${e(label)}</span><div>${ticks.map((t) => `<small style="left:${(t / max) * 100}%">${f(t)}</small>`).join("")}</div></div>${rows.map(([name, segments]) => `<div class="mech-time-row"><strong>${e(name)}</strong><div>${segments.map((v, i) => `<span class="owner-${v.color ?? i % 4}" style="left:${(v.start / max) * 100}%;width:${((v.end - v.start) / max) * 100}%" aria-label="${e(v.label)}：${v.start}至${v.end}${e(label)}">${v.hideLabel ? "" : e(v.label)}</span>`).join("")}</div></div>`).join("")}</div></div>`;
 }
 function node(x, y, name, value, cls = "operation") {
   return (
@@ -634,21 +634,30 @@ export function renderFoundationFigure(figure, s) {
               [
                 "冷调用",
                 [
-                  { start: 0, end: 100, label: "编译100ms" },
-                  { start: 100, end: 101, label: "提交1" },
-                  { start: 101, end: 105, label: "执行4" },
+                  { start: 0, end: 100, label: "编译 100 ms", color: 0 },
+                  { start: 100, end: 101, label: "提交 1 ms", color: 1, hideLabel: true },
+                  { start: 101, end: 105, label: "执行 4 ms", color: 2, hideLabel: true },
                 ],
               ],
               [
                 "有效命中",
                 [
-                  { start: 0, end: 1, label: "提交1" },
-                  { start: 1, end: 5, label: "执行4" },
+                  { start: 0, end: 1, label: "提交 1 ms", color: 1, hideLabel: true },
+                  { start: 1, end: 5, label: "执行 4 ms", color: 2, hideLabel: true },
                 ],
               ],
             ],
             105,
             "ms（教学）",
+            [0, 25, 50, 75, 100, 105],
+          ) +
+          `<p>两行使用同一时间比例；短条仍代表 1 ms 提交与 4 ms 执行，具体时长见下表。</p>` +
+          table(
+            ["调用条件", "编译", "提交", "GPU 执行", "教学总时长"],
+            [
+              ["冷调用", "100 ms", "1 ms", "4 ms", "105 ms"],
+              ["有效命中", "省去此项", "1 ms", "4 ms", "5 ms"],
+            ],
           ) +
           metrics([
             ["本次教学键命中", changed ? "否" : "是"],

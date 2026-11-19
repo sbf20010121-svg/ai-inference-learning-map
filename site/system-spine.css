@@ -9,6 +9,8 @@
 .spine-modes a[aria-current="page"],.spine-station.active,.spine-trace button[aria-pressed="true"]{background:var(--primary-soft);color:var(--primary);border-color:var(--primary);font-weight:650}
 .system-spine a:focus-visible,.system-spine button:focus-visible,.spine-map-scroll:focus-visible{outline:3px solid var(--primary);outline-offset:3px}
 .spine-map-scroll{max-width:100%;overflow:auto;border:1px solid var(--border);border-radius:12px;background:var(--surface)}
+.spine-map-hint{display:none;font-size:12px;line-height:1.7;color:var(--muted);margin-bottom:7px}
+@media(max-width:760px){.spine-map-hint{display:block}}
 .spine-map-svg{display:block;width:100%;min-width:760px;height:auto;color:var(--ink);font-size:15px;font-family:inherit}
 .spine-map-svg rect{fill:var(--surface2);stroke:var(--border);stroke-width:1.5}
 .spine-map-svg text{fill:var(--ink)}

@@ -8,7 +8,7 @@ const fs = require("node:fs");
   const { systemSpineStages, spineStageForCourse } = await import("../site/js/system-spine.js");
   const base = process.env.ATLAS_URL || "http://127.0.0.1:5173/";
   const browser = await chromium.launch({ headless: true, executablePath: process.env.BROWSER_EXECUTABLE || undefined });
-  const errors = [], report = { coursesRoundTrip: 0, stages: 0, traceBranches: 0, widths: [1365, 390, 360], errors };
+  const errors = [], report = { coursesRoundTrip: 0, mobileCourseRoundTrip: 0, stages: 0, traceBranches: 0, widths: [1365, 390, 360], focus: [], errors };
   fs.mkdirSync("test-results", { recursive: true });
   try {
     for (const width of report.widths) {
@@ -36,6 +36,16 @@ const fs = require("node:fs");
         assert.ok(page.url().endsWith(`#spine/${stage}`), `${c.id}: return went to wrong stage`);
         report.coursesRoundTrip++;
       }
+      if (width !== 1365) {
+        await page.goto(`${base}#spine/request`);
+        await page.locator('[data-spine-open-course="request-lifecycle"]').click();
+        await page.waitForSelector("#focusReader");
+        await page.locator(".course-orientation [data-spine-stage]").click();
+        await page.waitForSelector("#spineStageHeading");
+        assert.ok(await page.locator(".top-nav").isVisible(), `${width}: mobile navigation must return after leaving the reader`);
+        await checkWidth("mobile-course-return");
+        report.mobileCourseRoundTrip++;
+      }
       await page.goto(`${base}#spine/sample`);
       for (const scenario of ["length", "eos", "cancel"]) {
         await page.locator(`[data-spine-trace-case="${scenario}"]`).click();
@@ -56,21 +66,26 @@ const fs = require("node:fs");
       }
       for (const id of ["request", "compile-source", "workload-vla"]) {
         await page.goto(`${base}#spine/${id}`);
-        await page.waitForSelector("#spineStageHeading");
+        await page.waitForFunction(title => document.querySelector("#spineStageHeading")?.textContent === title, systemSpineStages.find(stage => stage.id === id).title);
+        await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
         await page.screenshot({ path: `test-results/v6-spine-${id}-${width}.png`, fullPage: true });
       }
       await page.locator('.spine-modes a[href="#spine/compile-source"]').focus();
       await page.keyboard.press("Enter");
-      await page.waitForFunction(() => location.hash === "#spine/compile-source");
+      await page.waitForFunction(() => location.hash === "#spine/compile-source" && document.activeElement?.id === "spineOverviewHeading");
       assert.equal(await page.locator("#spineOverviewHeading").evaluate(el => el === document.activeElement), true);
       const focusBox = await page.locator("#spineOverviewHeading").boundingBox();
       assert.ok(focusBox.y >= 0 && focusBox.y + focusBox.height <= 950, "mode navigation focus must be visible");
       await page.locator('.spine-stage-nav a[href="#spine/compile-lower"]').click();
       await page.waitForFunction(() => document.activeElement?.id === "spineStageHeading");
       const detailBox = await page.locator("#spineStageHeading").boundingBox();
-      assert.ok(detailBox.y >= 70 && detailBox.y + detailBox.height <= 950, "stage navigation focus must be visible");
+      const headerBox = await page.locator(".topbar").boundingBox();
+      await page.screenshot({ path: `test-results/v6-spine-stage-focus-${width}.png` });
+      report.focus.push({ width, headerBottom: headerBox.y + headerBox.height, headingTop: detailBox.y, headingBottom: detailBox.y + detailBox.height });
+      assert.ok(detailBox.y >= headerBox.y + headerBox.height && detailBox.y + detailBox.height <= 950, `${width}: stage navigation focus must be visible; ${JSON.stringify(report.focus.at(-1))}`);
       await page.locator("#themeToggle").click();
       await checkWidth("dark");
+      await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
       await page.screenshot({ path: `test-results/v6-spine-dark-${width}.png`, fullPage: true });
       await context.close();
     }
@@ -91,6 +106,7 @@ const fs = require("node:fs");
         const expected = chaptersFor(course).find(ch => ch.id === chapter);
         await page.waitForFunction(([id, figure]) => document.querySelector('[data-mech-chapter][aria-current="step"]')?.dataset.mechChapter === id && document.querySelector(".mechanism-lab")?.dataset.mechanism === figure, [chapter, expected.figure]);
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, `${width}/${route}: screenshot route overflow`);
+        await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
         await page.screenshot({ path: `test-results/v6-lesson-${course}-${chapter}-${width}.png`, fullPage: true });
       }
     }

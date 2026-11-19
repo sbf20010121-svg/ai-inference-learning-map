@@ -7,7 +7,7 @@ function edge(d, label, x, y, control = false) {
   return `<path d="${d}" class="${control ? "control" : "flow"}" marker-end="url(#spine-arrow)"/><text x="${x}" y="${y}" class="edge-label">${e(label)}</text>`;
 }
 function svg(body, title, description, height) {
-  return `<div class="spine-map-scroll" tabindex="0" role="region" aria-label="系统关系图，可横向滚动"><svg class="spine-map-svg" viewBox="0 0 1000 ${height}" style="--map-height:${height}" role="img" aria-labelledby="spine-map-title spine-map-desc"><title id="spine-map-title">${e(title)}</title><desc id="spine-map-desc">${e(description)}</desc><defs><marker id="spine-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z"/></marker></defs>${body}</svg></div>`;
+  return `<div class="spine-map"><p class="spine-map-hint">关系图可左右滑动；点击环节查看详情。</p><div class="spine-map-scroll" tabindex="0" role="region" aria-label="系统关系图，可横向滚动"><svg class="spine-map-svg" viewBox="0 0 1000 ${height}" style="--map-height:${height}" role="img" aria-labelledby="spine-map-title spine-map-desc"><title id="spine-map-title">${e(title)}</title><desc id="spine-map-desc">${e(description)}</desc><defs><marker id="spine-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z"/></marker></defs>${body}</svg></div></div>`;
 }
 
 export function runtimeDiagram(selected) {

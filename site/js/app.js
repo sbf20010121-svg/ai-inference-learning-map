@@ -32,7 +32,7 @@ function setTheme(next){state.theme=next;document.documentElement.dataset.theme=
 function navHash(path){location.hash=path}
 function changeView(view){state.view=view;$('#mapView').hidden=view!=='map';$('#lessonView').hidden=view!=='lesson';$('#depthView').hidden=view!=='depth';$('#knowledgeNetworkView').hidden=view!=='network';$('#pathView').hidden=view!=='path';$('#spineView').hidden=view!=='spine';for(const [id,name] of [['topMap','map'],['topSpine','spine'],['topDepth','depth'],['topNetwork','network'],['topPath','path']]){$('#'+id).classList.toggle('is-active',view===name);$('#'+id).setAttribute('aria-current',view===name?'page':'false')}window.scrollTo({top:0,behavior:'instant'});}
 function fromHash(){const raw=decodeURIComponent(location.hash.slice(1));const [type,id,level,chapter]=raw.split('/');if(type==='curriculum'){changeView('depth');renderCurriculum(id,exportDepthProgress(),resumeDepthHash().split('/')[1]);renderSidebar();return}if(type==='network'){changeView('network');if(id==='studio'&&level)setNetworkStudio(level);else if(id)selectKnowledge(id);else renderKnowledgeNetwork();renderSidebar();return}if(type==='depth'){changeView('depth');goDepth(id,level,chapter);renderSidebar();return}if(type==='lesson'&&lessonMap.has(id)){state.activeLesson=id;state.selected=id;state.step=0;state.quizChoice=null;changeView('lesson');if(getProgress(id).status==='new')setProgress(id,{status:'learning'});renderLesson();renderSidebar();return}
-if(type==='spine'){changeView('spine');$('#spineContent').innerHTML=renderSystemSpine(id||'request',spineTraceState);if(spineDetailFocus){$('#spineStageHeading')?.focus();$('#spineStageHeading')?.scrollIntoView({block:'start'});}else $('#spineOverviewHeading')?.focus({preventScroll:true});spineDetailFocus=false;renderSidebar();return}
+if(type==='spine'){changeView('spine');$('#spineContent').innerHTML=renderSystemSpine(id||'request',spineTraceState);if(spineDetailFocus){const heading=$('#spineStageHeading');heading.style.scrollMarginTop=($('.topbar').getBoundingClientRect().height+16)+'px';heading.focus({preventScroll:true});heading.scrollIntoView({block:'start',behavior:'instant'});}else $('#spineOverviewHeading')?.focus({preventScroll:true});spineDetailFocus=false;renderSidebar();return}
 if(type==='path'){changeView('path');renderPath();renderSidebar();return}
 changeView('map');state.selected=((type==='module'||type==='topic')&&nodeMap.has(id))?id:null;renderGraph();renderInspector();renderSidebar();}
 function renderSidebar(){const nav=$('#moduleNav');nav.innerHTML=modules.map(m=>`<button type="button" data-module="${m.id}" style="--module-color:${m.color}" class="${state.selected===m.id?'active':''}" aria-label="查看${safe(m.label)}"><span class="module-dot"></span><b>${safe(m.label)}</b><em>${m.num}</em></button>`).join('');}
@@ -132,8 +132,10 @@ $('#themeToggle').addEventListener('click',()=>setTheme(state.theme==='light'?'d
 $('#exportBtn').addEventListener('click',exportProgress);$('#importBtn').addEventListener('click',()=>$('#importFile').click());$('#importFile').addEventListener('change',async e=>{await importProgress(e.target.files?.[0]);e.target.value=''});
 
 document.addEventListener('click',e=>{
-  if(e.target.closest('.spine-node,.spine-stage-nav,.course-orientation [data-spine-stage]'))spineDetailFocus=true;
+  if(e.target.closest('.spine-node,.spine-stage-nav,.spine-trace-controls a,.course-orientation [data-spine-stage]'))spineDetailFocus=true;
   if(e.target.closest('.spine-modes,#topSpine'))spineDetailFocus=false;
+  const currentSpineLink=e.target.closest('.spine-node,.spine-station,.spine-modes a,.spine-trace-controls a');
+  if(currentSpineLink?.getAttribute('href')===location.hash){e.preventDefault();fromHash();return;}
   const scenario=e.target.closest('[data-spine-trace-case]'), step=e.target.closest('[data-spine-trace-step]');
   if(!scenario&&!step)return;
   const direction=step?Number(step.dataset.spineTraceStep)-spineTraceState.step:0;

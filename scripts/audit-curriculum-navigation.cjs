@@ -83,6 +83,7 @@ const fs = require("node:fs");
     .locator(".mech-time-row span")
     .evaluateAll((n) => n.map((x) => getComputedStyle(x).backgroundColor));
   assert.equal(new Set(allColors).size, 3);
+  await p.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
   await p.screenshot({
     path: "test-results/v5-final-pipeline.png",
     fullPage: true,
@@ -90,6 +91,7 @@ const fs = require("node:fs");
   await p.setViewportSize({ width: 360, height: 950 });
   await p.goto(base + "#depth/observation-contract/L2/frame");
   await p.waitForSelector(".mechanism-chapter");
+  await p.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
   await p.screenshot({
     path: "test-results/v5-final-coordinates-mobile.png",
     fullPage: true,

@@ -160,6 +160,8 @@ const assert = require("node:assert/strict");
             "reduce",
           ].includes(ch.id)
         ) {
+          await page.waitForFunction(() => !document.querySelector("#toast")?.classList.contains("show"));
+          await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
           await page.screenshot({
             path: `test-results/v4-${t.id}-${ch.id}.png`,
             fullPage: true,
@@ -279,6 +281,8 @@ const assert = require("node:assert/strict");
       old.note + "；新版追加",
     );
     await page.locator("#themeToggle").click();
+    await page.waitForFunction(() => !document.querySelector("#toast")?.classList.contains("show"));
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
     await page.screenshot({
       path: `test-results/v4-${width}-dark.png`,
       fullPage: true,
