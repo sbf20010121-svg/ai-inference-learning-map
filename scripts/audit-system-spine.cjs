@@ -38,7 +38,7 @@ const fs = require("node:fs");
       }
       if (width !== 1365) {
         await page.goto(`${base}#spine/request`);
-        await page.locator('[data-spine-open-course="request-lifecycle"]').click();
+        await page.locator('.spine-detail [data-spine-open-course="request-lifecycle"]').click();
         await page.waitForSelector("#focusReader");
         await page.locator(".course-orientation [data-spine-stage]").click();
         await page.waitForSelector("#spineStageHeading");
