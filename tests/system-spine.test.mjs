@@ -5,13 +5,25 @@ import {
   renderSystemSpine,
   spineStageForCourse,
   validateSystemSpine,
+  spineLocationsForCourse,
+  systemSpineStages,
 } from "../site/js/system-spine.js";
 
 test("system spine has unique stages and only links registered courses", () => {
   assert.equal(validateSystemSpine(), true);
   for (const course of allCourses) {
     const stage = spineStageForCourse(course.id);
-    assert.ok(stage, course.id);
+    assert.ok(systemSpineStages.find(s => s.id === stage)?.courses.includes(course.id), course.id);
+    assert.equal(spineLocationsForCourse(course.id)[0].id, stage, course.id);
+  }
+});
+
+test("spine course links open lessons instead of navigating back to the spine", () => {
+  for (const stage of systemSpineStages) {
+    const html = renderSystemSpine(stage.id);
+    for (const id of stage.courses)
+      assert.ok(html.includes(`data-spine-open-course="${id}" href="#depth/${id}/L2"`), `${stage.id}/${id}`);
+    assert.doesNotMatch(html, /data-spine-course=/);
   }
 });
 

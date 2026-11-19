@@ -53,7 +53,7 @@ export const chapterArcs = {
       ],
       [
         "β",
-        "写入强度，控制本次残差有多少进入状态；β=1表示完整纠正本例误差。"
+        "写入强度。仅当Key的平方范数为1时，β=1才把该Key的当前预测完整纠正到目标；本例Key满足该条件。"
       ]
     ],
     "takeaway": "Delta Rule 的关键是写入 v−kᵀS，而不是直接写入v。重复Key时它修正旧关联，避免把同一目标简单累加。",
@@ -102,7 +102,7 @@ export const chapterArcs = {
     "terms": [
       [
         "Dᵢ",
-        "第i个Token对应的写入向量；本例把它作为待求的块内未知量。"
+        "第i个Token已乘βᵢ的残差向量：Dᵢ=βᵢ(vᵢ−kᵢᵀSᵢ₋₁)。本章限定γ=1、S₀=0。"
       ],
       [
         "严格下三角矩阵 L",
@@ -163,7 +163,7 @@ export const chapterArcs = {
     "terms": [
       [
         "不变量",
-        "在给定假设下每一步都必须成立的关系，例如新状态应等于旧状态加本次写入。"
+        "给定假设下每步都必须成立的关系。本例是新状态=γ×旧状态+本次写入；γ≠1时不能漏掉衰减。"
       ],
       [
         "数值对照",
@@ -297,7 +297,7 @@ export const chapterArcs = {
       ]
     ],
     "takeaway": "PTX不是最终SASS，PTX文本行数也不能直接推出物理寄存器数量或Kernel时间。判断目标代码需要固定编译版本、目标架构、Shape和dtype。",
-    "bridge": "即使产物已经生成，也不代表每次请求都要重新编译。下一章继续区分编译缓存、加载与实际派发。"
+    "bridge": "现在能区分程序表示、实际设备产物和测量结果。下一章用这些证据检查融合反例：逻辑IO降低后，资源与端到端时间是否真的改善。"
   },
   "compiler-lowering/tradeoff": {
     "opening": "前面看到融合可能减少逻辑中间数据写回。最后要检查反例：减少一种成本时，是否引入了寄存器压力、Spill或关键路径上的其它成本？",
@@ -491,7 +491,7 @@ export const chapterArcs = {
       ]
     ],
     "takeaway": "更少的逻辑连接不自动意味着更低延迟。不规则索引、块粒度、访存合并和有效Tile利用率都可能抵消理论计算量下降。",
-    "bridge": "接下来可把稀疏模式与FlashAttention的精确分块对照：前者改变连接语义，后者主要改变计算组织。"
+    "bridge": "实现层可继续对照FlashAttention：固定Mask之后再研究怎样分块。按本单元顺序，下一门MoE会转向另一种稀疏性——每个Token只访问部分专家。"
   },
   "token-embedding/tokens": {
     "opening": "模型并不直接把一段字符串当成连续数值矩阵。Tokenizer先按一套固定规则把文本切成离散Token，再把每个Token映射到词表中的整数ID。",
@@ -529,7 +529,7 @@ export const chapterArcs = {
       ]
     ],
     "takeaway": "ID=2表示读取Embedding矩阵第2号对应行（按实现索引约定），不是把某个向量乘2。多个ID按顺序查行后组成隐藏张量。",
-    "bridge": "Embedding把离散ID变成隐藏向量；生成时还要把隐藏向量投影回词表，得到候选分数。"
+    "bridge": "Embedding给出模型层的输入；下一章先观察另一端的输出头，并明确它接收的是经过模型层计算的最终隐藏状态。"
   },
   "token-embedding/head": {
     "opening": "模型内部处理的是隐藏向量，但生成目标仍是词表中的离散Token。输出头负责把隐藏维映射回词表维度。",
@@ -548,7 +548,7 @@ export const chapterArcs = {
       ]
     ],
     "takeaway": "隐藏向量h经过输出投影得到V个Logits，后续还需要概率处理和采样。输入Embedding与输出头是否共享权重必须查模型配置。",
-    "bridge": "Logits提供候选分数，不直接决定最终Token。下一步进入温度、Top-k、Top-p和随机采样。"
+    "bridge": "输入向量和输出分数已经分清。下一门完整Transformer层解释两端之间的计算；之后的采样课再把Logits变成离散Token。"
   },
   "transformer-layer/residual": {
     "opening": "一个Transformer层不是只有Attention。先固定一种明确的Pre-Norm教学结构，观察子层输入和子层贡献之外，原始隐藏状态还沿残差路径继续传递。",
@@ -609,7 +609,7 @@ export const chapterArcs = {
       ]
     ],
     "takeaway": "Up、非线性、Down共同构成一个逐Token的前馈变换。扩维增加中间计算与激活存储；具体激活和门控结构依模型而异。",
-    "bridge": "现在可以把完整Transformer层与MoE、Norm和GPU Kernel连接起来，分析每个子层的计算和访存。"
+    "bridge": "完整层的输入输出和旁路已经接上。下一门Transformer计算课进一步区分Q/K/V头、Prefill的新位置数和Decode的历史读取量。"
   },
   "generation-state/positions": {
     "opening": "上一环节已经从Logits选出了一个Token，但“Token已经被选中”和“Token已经经过模型计算”是两个不同事件。现在用两个计数器分别追踪它们。",
@@ -647,7 +647,7 @@ export const chapterArcs = {
       ]
     ],
     "takeaway": "EOS或长度上限可以终止后续生成，但已提交Kernel仍需满足完成依赖；KV和缓冲区只能在不再被在途工作或其它请求引用时回收。",
-    "bridge": "停止语义接到推理引擎的请求状态机：下一步看取消、终态、输出交付和KV引用如何协调。"
+    "bridge": "引擎中的取消、终态和KV回收可到请求生命周期课继续追踪。本单元下一门采样课先补齐：这一轮的候选分数究竟怎样选成一个Token。"
   },
   "sampling-distribution/temperature": {
     "opening": "输出头给出的是Logits分数，而不是概率。温度先改变分数之间的相对差距，再由Softmax把它们转换为归一化概率。",
@@ -666,14 +666,14 @@ export const chapterArcs = {
       ]
     ],
     "takeaway": "Softmax使用 z/T。正温度通常保持候选排序，但改变概率分布的尖锐程度；温度越高，分布通常越平。",
-    "bridge": "温度调整完整候选分布后，Top-p会根据排序后的累计概率决定保留哪些Token。"
+    "bridge": "温度调整完整分布后，下一章分别看Top-k的个数限制和Top-p的累计质量限制，并核对组合顺序。"
   },
   "sampling-distribution/nucleus": {
-    "opening": "温度得到一组概率后，Top-p不直接选择一个Token，而是先排序，再找累计概率首次达到阈值的最小候选集合。",
+    "opening": "候选筛选还没有抽出一个Token。Top-k按个数截断，Top-p按累计概率截断；当两者组合时，先筛掉的质量会改变后续归一化的分母。",
     "terms": [
       [
-        "CDF / 累积分布",
-        "按排序后的Token概率逐项累加得到的累计质量。"
+        "Top-k",
+        "保留k个最高分候选；本例没有同分边界，k=4表示不截断这张四词词表。"
       ],
       [
         "Nucleus / 核采样",
@@ -684,7 +684,7 @@ export const chapterArcs = {
         "筛选后把保留概率除以保留总质量，使输出概率重新加总为1。"
       ]
     ],
-    "takeaway": "Top-p必须保留跨过阈值的完整Token项，因此保留的原始概率质量可能略大于p；筛选后还要重新归一化。",
+    "takeaway": "Top-k限定个数，Top-p保留跨阈值的整项。本图先Top-k再归一化后做Top-p，因此p所指的质量属于当前候选分布；不能混用最初的分母。",
     "bridge": "候选集合和概率确定后，下一章用一个随机数追踪CDF区间，真正选出一个Token。"
   },
   "sampling-distribution/draw": {
@@ -753,7 +753,7 @@ export const chapterArcs = {
       ],
       [
         "引用计数 / Refcount",
-        "记录一个物理KV块仍被多少请求或缓存条目使用。"
+        "本图统计仍持有该物理块的请求数；缓存内容是否保留以及块能否被逐出，是另外的分配器状态。"
       ],
       [
         "完成事件",
@@ -779,7 +779,7 @@ export const chapterArcs = {
         "把新关联直接加到状态中的对照规则，不等同Delta纠错。"
       ]
     ],
-    "takeaway": "相同Key连续写入目标2和4时，直接累加得到6；β=1的Delta纠错更新到4。固定形状不能决定采用哪种数学机制。",
+    "takeaway": "本例Key=1、初态0且无遗忘：写目标2和4后，直接累加得到6；β=1的Delta纠错得到4。换非单位Key或加遗忘后应重新代入公式，固定形状不能决定更新语义。",
     "bridge": "Delta状态更新仍是一类Key-Value关联机制。下一章转向SSM，比较它用状态递推表达的对象。"
   },
   "state-families/ssm": {

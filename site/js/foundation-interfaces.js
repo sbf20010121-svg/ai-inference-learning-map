@@ -35,8 +35,10 @@ export const interfaceCourses = [
         "runtime",
         "构建之后如何执行",
         "Engine已经生成，为什么还要设置当前Shape和绑定缓冲？",
-        "构建产物不包含每个新请求的输入值。执行上下文要使用相容Profile、运行形状和有效缓冲，并满足所需完成与生命周期；序列化文件也不能无条件跨硬件/版本搬用。",
-        { code: true },
+        "图固定X[6,4]与W[4,2]，只改变本次输入数值，第0行输出会从[2,4]变成[12,4]。构建产物可复用，当前Shape、输入输出地址和完成依赖仍须正确设置；文件也不能无条件跨硬件/版本搬用。",
+        { code: true, evidence: {
+          code: "# 原创执行骨架，名称不是TensorRT API\ncontext = create_execution_context(engine)\nselect_compatible_profile(context, B=6, H=4)\nset_runtime_shapes(context, input_shape=[6,4])\nbind_buffers(context, input=X, output=Y)\nwait_for_input_producer()\nenqueue(context)\nwait_for_execution_completion_before_reading(Y)\n# 本次只换X的数值不等于换图；缓冲仍需覆盖在途访问",
+        } },
       ),
     ],
     formula: math(
@@ -83,7 +85,10 @@ export const interfaceCourses = [
         "同一指数区间有多少格",
         "在[1,2)内，3尾数位与2尾数位的间距怎样不同？",
         "正规数在这个区间的步长分别1/8与1/4。x=1.12的最近值分别1.125与1；这是局部精度比较，不能由此概括全部动态范围。",
-        { formula: true },
+        { formula: true, evidence: {
+          source: "https://arxiv.org/abs/2209.05433v2",
+          section: "FP8 Formats for Deep Learning：E4M3与E5M2的指数/尾数位数。只比较[1,2)的正规数网格，未把E5M2说成TensorRT支持类型。",
+        } },
       ),
       page(
         "fp4",
@@ -140,20 +145,26 @@ export const interfaceCourses = [
         "一个输出使用哪些像素",
         "4×4输入、2×2Kernel、Stride1时，输出(1,1)读哪四格？",
         "起点是输入(1,1)，读取(1,1)/(1,2)/(2,1)/(2,2)。图高亮实际窗口与对应Kernel权重，按元素相乘后求和。",
-        { formula: true },
+        { formula: true, evidence: {
+          formula: math("<mrow><msub><mi>Y</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>=</mo><munderover><mo>∑</mo><mrow><mi>u</mi><mo>=</mo><mn>0</mn></mrow><mn>1</mn></munderover><munderover><mo>∑</mo><mrow><mi>v</mi><mo>=</mo><mn>0</mn></mrow><mn>1</mn></munderover><msub><mi>X</mi><mrow><mi>iS</mi><mo>−</mo><mi>P</mi><mo>+</mo><mi>u</mi><mo>,</mo><mi>jS</mi><mo>−</mo><mi>P</mi><mo>+</mo><mi>v</mi></mrow></msub><msub><mi>W</mi><mrow><mi>u</mi><mi>v</mi></mrow></msub></mrow>"),
+          derive: ["i、j是输出坐标；u、v是2×2窗口内坐标；S是Stride，P是Padding，W是窗口权重。超出输入的X按本例取0。", "i=j=1、S=1、P=0，窗口为[5,6,9,10]，权重为[1,0,0,1]。", "输出Y[1,1]=5×1+6×0+9×0+10×1=15。"],
+        } },
       ),
       page(
         "stride",
         "Stride改变哪些窗口",
         "Stride从1改2，为什么输出从3×3变2×2？",
         "窗口起点由0/1/2改为0/2。它减少输出坐标集合，不只是把已有输出显示得更稀；Padding则会改变可取窗口边界。",
+        { formula: true },
       ),
       page(
         "im2col",
         "窗口怎样变矩阵乘",
         "展平后每一行代表什么，为什么会重复输入值？",
         "每行是一个输出位置的窗口，Kernel展平成列，矩阵乘得到各位置输出。重叠窗口导致相同输入被多次表示，真实实现未必物化整个im2col。",
-        { code: true, quiz: true },
+        { code: true, quiz: true, evidence: {
+          code: "image=[[4*r+c for c in range(4)] for r in range(4)]\npatches=[[image[r+i][c+j] for i in range(2) for j in range(2)]\n         for r in range(3) for c in range(3)]\nweight=[1,0,0,1]\nout=[sum(x*w for x,w in zip(row,weight)) for row in patches]\nassert patches[4]==[5,6,9,10] and out[4]==15\n# 这里只显式组织数学表示，生产Kernel未必物化patches",
+        } },
       ),
     ],
     formula: math(

@@ -1,4 +1,6 @@
 import * as N from "./foundation-numerics.js";
+import { ssaAssignments, fusionRounding, engineInvocation } from "./compiler-kernel-models.js";
+import { requestLifecycle, asyncRounds, quantizedExecution, ringTopology, quotaRound } from "./engine-system-models.js";
 const e = (s = "") =>
   String(s).replace(
     /[&<>"']/g,
@@ -150,6 +152,26 @@ export function renderFoundationFigure(figure, s) {
       );
     }
     case "ir-ssa": {
+      if (view === "values") {
+        const values = ssaAssignments(c ? 4 : 2);
+        let z = text(25, 25, "同一个源码名字x，三次定义保留各自身份");
+        values.forEach((v, i) => {
+          const x = 75 + i * 220;
+          z += node(x, 115, v.name, v.value, `owner-${i}`);
+          z += text(x - 48, 175, v.source);
+          if (i) z += line(x - 194, 115, x - 26, 115);
+        });
+        return frame(
+          svg(z, "源码变量赋值与三个独立SSA值", 215) +
+            table(["定义", "读的是谁", "结果"], [
+              ["%x0", "本次输入", values[0].value],
+              ["%u", "%x0 × 2", values[1].value],
+              ["%v", "%u + 1", values[2].value],
+            ]),
+          "线表示后一个定义使用前一个定义的结果；%u不会因为后续又写x而变成%v。SSA名不是物理寄存器编号。",
+          select("输入x", [[0, "2"], [1, "4"]], s),
+        );
+      }
       if (view === "effect")
         return frame(
           timeline(
@@ -373,6 +395,20 @@ export function renderFoundationFigure(figure, s) {
       );
     }
     case "fusion-legality": {
+      if (view === "precision") {
+        const d = fusionRounding(!c);
+        return frame(
+          array([1000, 0.4, -1000], "固定输入贡献") +
+            table(["依赖", "保留规定舍入", c ? "擅自去掉舍入" : "当前合法融合"], [
+              ["先加1000+0.4", 1000.4, d.wideIntermediate],
+              ["中间值（三位有效十进制）", 1000, d.storedIntermediate],
+              ["再减1000并舍入", 0, d.output],
+            ]) +
+            metrics([["结果是否保持", d.output === 0 ? "保持0" : "不等价：变成0.4"]]),
+          "这是有显式中间舍入的十进制教学语义。合法融合可以不写全局数组，仍必须执行所要求的舍入；不模拟FP16或真实GPU指令。",
+          select("融合如何处理中间精度", [[0, "保留舍入"], [1, "错误删除舍入"]], s),
+        );
+      }
       if (view === "alias")
         return frame(
           table(
@@ -446,6 +482,21 @@ export function renderFoundationFigure(figure, s) {
       );
     }
     case "buffer-liveness": {
+      if (view === "bufferize")
+        return frame(
+          matrices(
+            matrix([[2, 5]], "旧张量a，后续仍要计算sum(a)"),
+            matrix([[9, 5]], "新张量b，要求只替换第0项"),
+          ) +
+            table(["观察对象", "分配独立缓冲", "直接覆盖旧缓冲"], [
+              ["b的值", "[9,5]", "[9,5]"],
+              ["后续读取a的值", "[2,5]", "[9,5]"],
+              ["sum(a)", 7, 14],
+            ]) +
+            metrics([["当前安排", c ? "原位覆盖：改变旧值语义" : "独立缓冲：保留旧值语义"], ["后续sum(a)", c ? 14 : 7]]),
+          "两个SSA张量值不等于必须两份物理存储；但本例a仍有读者，所以此处直接覆盖不合法。是否能改写时序或消除读者需要另行证明。",
+          select("把新值b写在哪里", [[0, "独立缓冲"], [1, "错误覆盖a"]], s),
+        );
       const d = N.liveAllocation(!!c);
       return frame(
         timeline(
@@ -528,6 +579,16 @@ export function renderFoundationFigure(figure, s) {
       );
     }
     case "target-codegen": {
+      if (view === "artifact")
+        return frame(
+          table(["可观察对象", "回答什么", "不能据此回答什么"], [
+            ["IR / PTX中的值名", "显式值依赖与虚拟表示", "最终每线程寄存器数"],
+            ["编译器资源报告", "该目标/配置的分配与Spill", "真实输入下的端到端耗时"],
+            ["同一cubin的反汇编", "实际生成的设备指令", "只靠指令数得出速度"],
+            ["固定任务的设备/系统测量", "该条件下的时长与计数", "其它形状与设备也相同"],
+          ]) + metrics([["本站真实产物", "未采集；本页是证据关系"], ["不能填写的结果", "真实寄存器数、SASS及GPU时长"]]),
+          "同一Kernel要按源码/版本/目标/配置关联这些证据。这里没有用虚构的资源报告充当实物。",
+        );
       const pressure = c ? [1, 2, 3, 3, 2] : [1, 2, 2, 1, 1];
       return frame(
         bars(
@@ -640,6 +701,23 @@ export function renderFoundationFigure(figure, s) {
       );
     }
     case "engine-build": {
+      if (view === "runtime") {
+        const d = engineInvocation(6, c ? 10 : 0);
+        return frame(
+          matrices(
+            matrix([d.inputs[0]], "同一输入接口[6,4]：本次第0行"),
+            matrix(d.weights, "构建时的常量W[4,2]"),
+            matrix([d.outputs[0]], "执行后输出[6,2]：第0行"),
+          ) +
+            table(["运行对象", "当前约定", "完成前的要求"], [
+              ["Profile / Shape", "1≤B≤8，H=4；本次[6,4]", "选相容Profile并设置实际维度"],
+              ["输入缓冲X", "24个数；本次内容可以改变", "生产者完成后读，读完前不复用"],
+              ["输出缓冲Y", "至少容纳12个数", "执行完成后才读取结果"],
+            ]) + metrics([["当前第0行输出", `[${d.outputs[0]}]`], ["是否需要因数值变化重新构建", "本例无需，图/Shape/约束未变"]]),
+          "计算是原创小矩阵示例，不是调用TensorRT。Engine确定可执行计划，执行上下文绑定本次形状与地址；可复用产物不等于返回旧输入的输出。",
+          select("当前输入内容", [[0, "首行[0,1,2,3]"], [1, "首行[10,1,2,3]"]], s),
+        );
+      }
       const index = s.case % 3,
         inputs = [
           [6, 4],
@@ -747,10 +825,19 @@ function renderOtherFoundation(id, view, s) {
             s,
           ),
         );
+      if (view === "head") {
+        const h = c ? [1, -1] : [1, 1],
+          logits = E.map((row) => N.dot(h, row));
+        return frame(
+          matrices(matrix([h], "给定最终隐藏状态h：1×2"), matrix(E, "输出头W：4词×2维")) +
+            array(logits, "逐词点积hWᵀ：4个logit") +
+            metrics([["最高分词ID", logits.indexOf(Math.max(...logits))], ["现在得到的对象", "词表分数；尚未采样，也没有计算新Token的KV"]]),
+          "h假定已由模型层计算，这里只演示输出头。W数值与输入Embedding相同用于说明绑权重，不能据此跳过Transformer。分数相等时如何选择还取决于解码规则。",
+          select("给定隐藏状态", [[0, "h=[1,1]"], [1, "h=[1,−1]"]], s),
+        );
+      }
       const ids = c ? [1, 3] : [2, 0],
-        X = ids.map((i) => E[i]),
-        h = X[0],
-        logits = E.map((row) => N.dot(h, row));
+        X = ids.map((i) => E[i]);
       return frame(
         matrices(
           matrix(E, "E：4个ID × 2隐藏维", (i) =>
@@ -758,11 +845,8 @@ function renderOtherFoundation(id, view, s) {
           ),
           matrix([ids], "输入ID，不是连续值"),
           matrix(X, "查行后的X：2×2"),
-        ) +
-          (view === "head"
-            ? array(logits, "第一行隐藏状态与输出头Eᵀ得到的4个Logit")
-            : ""),
-        "颜色/边框追踪被读取的整行。此例选用相同矩阵作输出头示范权重绑定；ID2的含义不是向量乘2。",
+        ),
+        "颜色/边框追踪被读取的整行。X是送入模型层的向量，ID2的含义不是向量乘2；输出头会在下一章另行观察。",
         select(
           "输入序列",
           [
@@ -775,47 +859,44 @@ function renderOtherFoundation(id, view, s) {
     }
     case "transformer-layer": {
       if (view === "residual") {
-        const x = c ? [2, 1] : [1, 2],
-          contribution = [0.5, -0.5],
-          y = N.add(x, contribution);
-        const z =
-          node(70, 150, "x", x.join(","), "input") +
-          node(310, 80, "子层", contribution.join(",")) +
-          node(480, 150, "+", y.join(",")) +
-          line(95, 150, 285, 80) +
-          line(335, 80, 455, 150) +
-          `<path class="data-edge" d="M95 160 Q 275 295 455 160"/>` +
-          text(180, 250, "旁路携带原x，不由子层替代");
+        const d = N.transformerBlockExample(!!c),
+          stage = Math.min(s.step || 0, 5),
+          stages = [
+            ["逐行RMSNorm", d.X, d.normalized, "每行共享分母√(mean(x²)+ε)，ε=10⁻⁶；本例缩放权重为1。"],
+            ["缩放因果Attention", d.normalized, d.attention, "Q=K=V=Norm(X)，输出投影为单位矩阵。Query0只能读Key0；Query1可读两行。"],
+            ["第一次残差 U=X+A", d.X, d.residual, "A是Attention贡献；旁路加回原X，而不是加回Norm(X)。"],
+            ["第二次RMSNorm", d.residual, d.ffInput, "FFN读取Norm(U)，旁路仍保留U。两次Norm各用当前输入求分母。"],
+            ["逐行FFN 2→3→2", d.ffInput, d.down, "Up投影后ReLU，再用Down权重投回隐藏维；不直接混合Token行。"],
+            ["第二次残差 Y=U+F", d.residual, d.output, "F是FFN贡献。输出仍为2 Token×2隐藏维，可以传给下一层。"],
+          ],
+          [title, input, output, explanation] = stages[stage];
         return frame(
-          svg(z, "给定子层贡献的残差相加") + array(y, "残差输出"),
-          "为了隔离残差，子层贡献固定给定；没有把这个固定向量冒充真实Attention计算。",
-          select(
-            "残差输入",
-            [
-              [0, "[1,2]"],
-              [1, "[2,1]"],
-            ],
-            s,
-          ),
+          matrices(matrix(input, "本步输入；行0/1保留Token身份"), matrix(output, title)) +
+            (stage === 1 ? matrix(d.weights, "Attention权重：行和为1，未来权重为0") : "") +
+            (stage === 2 ? matrix(d.attention, "本次加回的Attention贡献A") : "") +
+            (stage === 4 ? matrices(matrix(d.up, "Up中间值"), matrix(d.activated, "ReLU后")) : "") +
+            (stage === 5 ? matrix(d.down, "本次加回的FFN贡献F") : "") +
+            metrics([["当前运算", explanation], ["下一层接口", "2×2；层结构不能直接换算Kernel数"]]),
+          "完整小层的真实数值串联：RMSNorm→因果Attention→加回X→RMSNorm→ReLU FFN→加回U。权重自设、单头、无位置编码或bias；不是已训练模型或性能测试。",
+          control("追踪同一隐藏矩阵", "step", [[0,"Norm(X)"],[1,"Attention"],[2,"X+A"],[3,"Norm(U)"],[4,"FFN"],[5,"U+F"]], { ...s, step: stage }) +
+            select("输入对照：只改Token0", [[0,"Token0=[1,−2]"],[1,"Token0=[2,−1]"]], s),
         );
       }
       const X = [
-          [1, -2],
+          c ? [2, -1] : [1, -2],
           [2, 1],
         ],
         up = X.map((x) => [x[0], x[1], x[0] + x[1]]),
         act = up.map((row) => row.map((v) => Math.max(0, v))),
         down = act.map((x) => [x[0] + x[2], x[1] + x[2]]),
         scores = N.mm(X, N.transpose(X)),
-        weights = scores.map((row) => N.softmax(row)),
+        weights = scores.map((row, i) => N.softmax(row.map((v,j) => j > i ? -Infinity : v / Math.sqrt(2)))),
         attn = N.mm(weights, X);
       return frame(
         matrices(
           matrix(X, "两个Token × 两隐藏维"),
-          matrix(
-            c ? attn : down,
-            c ? "Attention示例：混合不同Token行" : "FFN示例：各行独立共享权重",
-          ),
+          matrix(down, "FFN输出：两行分别计算"),
+          ...(view === "axes" ? [matrix(attn, "Attention输出：Token1可读取Token0")] : []),
         ) +
           (view === "expand"
             ? matrices(
@@ -823,62 +904,42 @@ function renderOtherFoundation(id, view, s) {
                 matrix(act, "ReLU后"),
                 matrix(down, "Down：3→2"),
               )
-            : matrix(
-                c
-                  ? weights
-                  : [
-                      [1, 0],
-                      [0, 1],
-                    ],
-                c
-                  ? "行间Attention权重（未加Mask的独立例）"
-                  : "FFN不混合Token轴（行身份）",
-              )),
-        "这些是隔离子算例：Attention采用Q=K=V=X、不含归一缩放/Mask的明确数学模型；FFN选择ReLU。整层的Norm和残差仍按本章公式另行组合。",
+            : matrix(weights, "缩放因果Attention权重；Query0不读未来")),
+        "隔离子算例：Attention取Q=K=V=X，除以√2并屏蔽未来；FFN取ReLU。改变Token0时，Token1的独立FFN输出保持[5,4]，Attention输出会改变。整层还需串联Norm和残差。",
         select(
-          "比较子层接口",
+          "只改变Token0，Token1保持[2,1]",
           [
-            [0, "逐行FFN"],
-            [1, "行间Attention"],
+            [0, "Token0=[1,−2]"],
+            [1, "Token0=[2,−1]"],
           ],
           s,
         ),
       );
     }
     case "generation-state": {
-      const stage = Math.min(step, 3),
-        selected = [2, 3, 4, 4][stage],
-        computed = [0, 2, 3, 3][stage],
-        seq = ["P0", "P1", "T0", c ? "T1" : "EOS"];
+      const events = N.generationTrace(2, c ? null : 2),
+        stage = Math.min(step, events.length - 1),
+        event = events[stage],
+        selected = event.tokens.length,
+        computed = event.computed,
+        seq = event.tokens;
       return frame(
         array(seq.slice(0, selected), "当前已确定Token身份") +
           array(seq.slice(0, computed), "已完成模型计算的位置") +
           metrics([
             ["序列长度", selected],
             ["已计算位置数", computed],
+            ["本次新增Token数 / 上限", `${event.generated} / 2（不含Prompt）`],
             [
               "请求状态",
-              stage === 3
-                ? c
-                  ? "长度上限结束"
-                  : "EOS结束"
-                : stage === 0
-                  ? "Prompt待计算"
-                  : stage === 1
-                    ? "已采样T0，尚未算其KV"
-                    : "已采样下一Token，准备停止判断",
+              event.label,
             ],
           ]),
         "固定教学轨迹：选择Token和计算该Token的KV是不同事件。停止后保留输出，KV回收还受引用和在途使用约束。",
         control(
           "轨迹事件",
           "step",
-          [
-            [0, "Prompt输入"],
-            [1, "Prefill并采样"],
-            [2, "Decode并采样"],
-            [3, "停止判断"],
-          ],
+          [[0,"Prompt输入"],[1,"Prefill完成"],[2,"采样T0"],[3,"Decode完成"],[4,"采样末Token"],[5,"停止判断"]],
           { ...s, step: stage },
         ) +
           select(
@@ -892,9 +953,13 @@ function renderOtherFoundation(id, view, s) {
       );
     }
     case "sampling-distribution": {
+      const kChoice = Math.min(s.pick || 0, 2),
+        k = view === "nucleus" ? [4, 2, 1][kChoice] : 4,
+        pChoice = (s.case || 0) % 3;
       const d = N.sampling(
           view === "temperature" && c ? 2 : 1,
-          view === "nucleus" && c ? 0.95 : 0.8,
+          view === "temperature" ? 1 : view === "nucleus" ? [0.8,0.95,0.7][pChoice] : 0.8,
+          k,
         ),
         u = c ? 0.3 : 0.75;
       if (view === "draw")
@@ -919,17 +984,18 @@ function renderOtherFoundation(id, view, s) {
           d.probabilities.map((p, i) => ["词" + i, p]),
           "Softmax后原分布",
         ) +
-          array(N.cumsum(d.probabilities), "按评分排序的累计质量") +
-          probability(
-            d.filtered.map((p, i) => ["保留词" + i, p]),
-            "筛选后重新归一",
-          ) +
+          (view === "nucleus" ?
+            probability(d.afterTopK.map((p,i) => ["词"+i,p]), `Top-k=${k}后归一化：Top-p在此分布上截断`) +
+            array(N.cumsum(d.afterTopK), "本例概率已降序；累计质量供Top-p确定前缀") +
+            probability(d.filtered.map((p,i) => ["词"+i,p]), "Top-p筛选后再次归一") : "") +
           metrics([
             ["保留ID", d.keep.join(",")],
             ["原始保留质量", d.mass],
             ["输出概率和", N.total(d.filtered)],
           ]),
-        "温度使用Logits/T，不是概率乘T。筛选保留完整Token项，跨过阈值的项必须包括。",
+        view === "temperature"
+          ? "本章只改温度，不叠加截断：T=2时排序不变，最高概率下降、低概率上升，输出概率和仍为1。"
+          : "本图先Top-k，再对剩余候选归一化后执行Top-p。阈值比较的分母已经改变；筛选保留完整Token项。真实后端顺序和同分边界需另查。",
         select(
           view === "temperature" ? "温度" : "Top-p",
           view === "temperature"
@@ -940,14 +1006,18 @@ function renderOtherFoundation(id, view, s) {
             : [
                 [0, "p=.8"],
                 [1, "p=.95"],
+                [2, "p=.7"],
               ],
           s,
-        ),
+        ) + (view === "nucleus" ? control("先保留多少候选", "pick", [[0,"不限k（4词）"],[1,"k=2"],[2,"k=1"]], { ...s, pick: kChoice }) : ""),
       );
     }
     case "attention-patterns": {
       const w = c ? 6 : 3,
         d = N.attentionPattern(w, view === "layers" ? 2 : 1);
+      const tileCounts = Array.from({length:3},(_,bi)=>Array.from({length:3},(_,bj)=>
+        d.direct.slice(bi*2,bi*2+2).reduce((sum,row)=>sum+N.total(row.slice(bj*2,bj*2+2)),0))),
+        activeTiles = tileCounts.flat().filter(Boolean).length;
       return frame(
         matrices(
           matrix(d.direct, "行=Query，列=Key；1可见，0屏蔽", (i, j) =>
@@ -961,7 +1031,7 @@ function renderOtherFoundation(id, view, s) {
                   (i, j) => (d.reachable[i][j] ? "selected" : "zero"),
                 ),
               ]
-            : []),
+            : view === "implementation" ? [matrix(tileCounts.map(row=>row.map(v=>`${v}/4`)), "每个2×2 Tile中的有效连接 / 4槽", (i,j)=>tileCounts[i][j] ? "selected" : "zero")] : []),
         ) +
           metrics([
             ["单层合法配对数", d.pairs],
@@ -972,8 +1042,12 @@ function renderOtherFoundation(id, view, s) {
                 .filter((v) => v !== null)
                 .join(","),
             ],
+            ...(view === "implementation" ? [["非空Tile数",activeTiles],["按整Tile处理的槽位",activeTiles*4],["有效槽位比例",`${d.pairs}/${activeTiles*4}`]] : []),
+            ...(view === "layers" ? [["两层后Query5可能依赖的输入",d.reachable[5].map((v,i)=>v?i:null).filter(v=>v!==null).join(",")]] : []),
           ]),
-        "窗口包括当前位置。颜色代表连接身份，不是实际注意力权重；连接减少可能改变功能，配对数也不是设备耗时。",
+        view === "implementation"
+          ? "本例假定每个非空2×2 Tile都处理4槽，展示稀疏连接如何受块粒度影响；不是某款FlashAttention的实测工作量。0表示禁止连接，实际Softmax须排除这些位置。"
+          : "窗口包括当前位置。颜色代表连接身份，不是实际注意力权重；两层可达只说明依赖路径存在，不保证完整保留远处信息。配对数不是设备耗时。",
         select(
           "连接模式",
           [
@@ -985,6 +1059,17 @@ function renderOtherFoundation(id, view, s) {
       );
     }
     case "vision-patches": {
+      if (view === "projection") {
+        const patch = [0,1,4,c ? 9 : 5],
+          W = [[1,0],[0,1],[1,0],[0,1]],
+          projected = N.mm([patch],W);
+        return frame(
+          matrices(matrix([patch],"同一Patch的4个像素值"),matrix(W,"自设投影W：4×2"),matrix(projected,"投影后的2维视觉Token")) +
+            metrics([["第一个输出",`${patch[0]}+${patch[2]}=4`],["第二个输出",`${patch[1]}+${patch[3]}=${projected[0][1]}`],["是否按像素值查词表", "否，是连续数值的线性组合"]]),
+          "四行权重分别作用于Patch内四个像素；输入改变会改变点积。这里只隔离Patch投影，完整视觉编码器还包含位置表示与后续网络。",
+          select("只改右下角像素",[[0,"值5"],[1,"值9"]],s),
+        );
+      }
       const d = N.patchify(c ? 8 : 4, 2),
         p = (s.pick || 0) % d.tokens;
       return frame(
@@ -1187,6 +1272,21 @@ function renderEngineFoundation(id, view, s) {
     step = Math.min(s.step || 0, 3);
   switch (id) {
     case "request-lifecycle": {
+      if (view === "finish" || view === "cancel") {
+        const d = requestLifecycle(!!c, step);
+        return frame(
+          table(["物理块", "仍持有请求", "引用数", "可复用"], d.blocks.map((b) => [b.id, b.owners.join(" / ") || "无", b.refs, b.reusable ? "是" : "否"])) +
+            metrics([
+              ["当前事件", d.event],
+              ["A控制状态", d.state],
+              ["设备是否仍可能访问", d.inFlight ? "是：不能回收" : "否：已确认完成"],
+              ["A结果", d.delivered ? "交付" : d.ignored ? "丢弃已取消请求的结果" : "尚未交付"],
+            ]),
+          "P3由A/B共享，P7归A独占。取消只改变A的控制状态；先确认在途访问结束，再释放引用。P7进入可复用集合不要求立即抹掉缓存内容。图为明确事件顺序，不是某版本分配器实现。",
+          select("A的终止方式", [[0, "正常完成"], [1, "在途取消"]], s) +
+            control("追踪同一批次", "step", [[0, "已提交"], [1, "控制事件"], [2, "设备完成"], [3, "释放A引用"]], { ...s, step }),
+        );
+      }
       const cancelled = !!c,
         rows = [
           [
@@ -1237,6 +1337,17 @@ function renderEngineFoundation(id, view, s) {
       );
     }
     case "model-loading": {
+      if (view === "dtype") {
+        const d = quantizedExecution(!!c);
+        return frame(
+          array(d.codes, "4个有符号整数码，各1Byte") +
+            array(d.weights, c ? "显式展开的FP32权重，各4Byte" : "消费时解码的数学值，不保留全量展开副本") +
+            bars([["整数码", d.codeBytes], ["标量Scale", d.scaleBytes], ["全量展开临时副本", d.temporaryBytes]], "同时存在的权重相关Byte", 24) +
+            metrics([["Scale", d.scale], ["此边界同时占用", `${d.concurrentWeightBytes}Byte`]]),
+          "教学设定：4个int8码、1个FP32 Scale；显式展开时原码和Scale暂未释放。不含算子工作区或完整模型。按需解码也需要寄存器等资源，只是没有这份全量FP32缓冲。",
+          select("转换方式", [[0, "消费时解码"], [1, "先展开全量副本"]], s),
+        );
+      }
       if (view === "files") {
         const W = Array.from({ length: 4 }, (_, i) =>
           Array.from({ length: 4 }, (_, j) => i * 4 + j),
@@ -1302,6 +1413,16 @@ function renderEngineFoundation(id, view, s) {
     }
     case "batch-executor": {
       const d = N.packedBatch(!!c);
+      if (view === "return") {
+        const outputs = d.slots.map((v) => `${v.id}的结果${v.position}`);
+        return frame(
+          table(["打包行", "请求:位置", "计算结果", "返回给谁"], d.slots.map((v, i) => [i, `${v.id}:${v.position}`, outputs[i], v.id])) +
+            array(d.offsets, "当前顺序对应的边界") +
+            metrics([["交换A/B后不变的对象", "请求ID、请求内位置与结果归属"], ["随打包改变", "行号和边界偏移"]]),
+          "结果字符串只表示可追踪身份，不是模型Logit。最后一个位置的结果也需按后端输出约定选择，不能把所有Packed行都当新生成Token。",
+          select("打包顺序", [[0, "A3 / B1"], [1, "B1 / A3"]], s),
+        );
+      }
       if (view === "workers")
         return frame(
           matrices(
@@ -1387,10 +1508,10 @@ function renderEngineFoundation(id, view, s) {
           metrics([
             ["当前事件", v.label],
             ["B已计算位置", v.computed],
-            ["B的离散序列", "暂停时仍保留4个历史Token"],
+            ["本例初态", "B有4个已计算历史位置；抢占不删除离散序列"],
             ["空闲块", cap - v.A - v.B],
           ]),
-        "手工状态轨迹固定选择B完全重计算，非vLLM生产策略仿真；共享块需另按引用规则处理。",
+        "固定选择B完全重计算，假设回收点没有未完成设备访问。抢占不取消请求；异步在途输出、部分前缀恢复和共享引用需另按实现处理。本图不是vLLM生产策略仿真。",
         select(
           "容量",
           [
@@ -1413,17 +1534,21 @@ function renderEngineFoundation(id, view, s) {
       );
     }
     case "async-engine": {
-      const cpu = [],
-        gpu = [];
-      for (let n = 0; n < 3; n++) {
-        const gs = c ? 2 + n * 4 : 2 + n * 6;
-        gpu.push({ start: gs, end: gs + 4, label: `GPU轮${n}`, color: n });
-        cpu.push({
-          start: c ? (n ? gs - 2 : 0) : n * 6,
-          end: c ? (n ? gs : 2) : n * 6 + 2,
-          label: `准备${n}`,
-          color: n,
-        });
+      const d = asyncRounds(!!c),
+        cpu = d.rounds.map((r) => ({ start: r.prepareStart, end: r.prepareEnd, label: `准备${r.n}`, color: r.n })),
+        gpu = d.rounds.map((r) => ({ start: r.gpuStart, end: r.gpuEnd, label: `GPU轮${r.n}`, color: r.n }));
+      if (view === "placeholder") {
+        const r = d.rounds[1];
+        return frame(
+          table(["事件", "教学时刻", "已知对象", "仍不能做什么"], [
+            ["预留下一轮位置", r.prepareStart, "请求ID、位置槽", "不能据槽位猜Token或EOS"],
+            ["独立元数据准备完", r.prepareEnd, "偏移与候选资源安排", "前轮未完成时仍不能读取真实词ID"],
+            ["前轮结果确认", r.tokenReady, "真实Token与终止判定", "若已终止，不能继续提交该请求"],
+            ["绑定并执行下一轮", r.gpuStart, "元数据 + 真实输入", "不得越过上述依赖"],
+          ].sort((a, b) => a[1] - b[1])) + metrics([["准备完成到真实Token就绪的等待", Math.max(0, r.tokenReady - r.prepareEnd)]]),
+          "只追踪第1轮对第0轮的依赖，绑定和停止检查按零额外节拍简化。占位是控制记录，尚不是模型输出；表中的顺序允许元数据与前轮GPU交叠。",
+          select("执行组织", [[0, "全部串行"], [1, "独立准备重叠"]], s),
+        );
       }
       return frame(
         timeline(
@@ -1435,9 +1560,9 @@ function renderEngineFoundation(id, view, s) {
           "教学节拍",
         ) +
           metrics([
-            ["3轮完成边界", c ? 14 : 18],
+            ["3轮完成边界", d.total],
             ["未知输出可否直接读取", "不可以，下一轮使用真实值前仍要等待"],
-            ["稳态理论周期", c ? 4 : 6],
+            ["稳态理论周期", d.steady],
           ]),
         "CPU2拍、GPU4拍、忽略绑定和传输成本；重叠模式只把独立元数据准备提前，结果依赖仍在GPU轮边界。",
         select(
@@ -1497,6 +1622,16 @@ function renderEngineFoundation(id, view, s) {
       );
     }
     case "admission-backpressure": {
+      if (view === "fairness") {
+        const d = quotaRound(!!c);
+        return frame(
+          array([...Array(d.granted.A).fill("A"), ...Array(d.granted.B).fill("B")], "本轮8个计算位置按请求归属") +
+            table(["请求", "本轮前未算输入", "安排位置", "本轮后未算输入"], ["A", "B"].map((id) => [id, d.pending[id], d.granted[id], d.remaining[id]])) +
+            metrics([["总Token预算", d.budget], ["本轮B能否前进", d.granted.B ? "能：处理2位置" : "不能：A用完预算"]]),
+          "A/B都是尚未算完输入的请求；固定总预算8且假设KV充足。配额改变谁先前进，没有增加总算力。这里只比较一轮，不宣称真实调度策略或长期公平性。",
+          select("本轮分配规则", [[0, "长输入A先取预算"], [1, "给B保留2位置"]], s),
+        );
+      }
       const d = N.boundedQueue(c ? 1 : 2, 3),
         accepted = d.rows.filter((r) => r.accepted),
         max = Math.max(...accepted.map((r) => r.end));
@@ -1687,29 +1822,27 @@ function renderKernelFoundation(id, view, s) {
         d = N.pagedRead(length, view === "tail" ? true : !c);
       return frame(
         table(
-          ["逻辑位置", "物理块:偏移", "K", "V"],
-          d.addresses.map(([p, o], t) => [
-            t,
-            `P${p}:${o}`,
-            d.keys[t],
-            d.values[t],
-          ]),
+          ["逻辑位置", "物理块:偏移", "K", "V", "本次是否有效"],
+          Array.from({ length: 4 }, (_, t) => {
+            const p = d.table[Math.floor(t / 2)], o = t % 2;
+            return [t, `P${p}:${o}`, d.physical[p].K[o], d.physical[p].V[o], t < length ? "有效" : "Mask排除，概率为0"];
+          }),
         ) +
           matrices(
             ...Object.entries(d.physical).map(([p, v]) =>
               matrix([v.K, v.V], `P${p}：第一行K、第二行V`),
             ),
           ) +
-          probability(
-            d.weights.map((v, i) => ["逻辑位置" + i, v]),
+          (view === "read" ? "" : probability(
+            Array.from({ length: 4 }, (_, i) => ["逻辑位置" + i, d.weights[i] || 0]),
             "q=1后的Softmax权重",
-          ) +
-          metrics([
+          )) +
+          (view === "read" ? metrics([["读取顺序", d.addresses.map(([p,o]) => `P${p}:${o}`).join(" → ")]]) : metrics([
             ["分页结果", d.out],
             ["连续独立参考", d.reference],
             ["误差", Math.abs(d.out - d.reference)],
             ["有效长度", length],
-          ]),
+          ])),
         "每块2位置、单标量Key/Value。物理换位不改变逻辑数学；尾部不属于本请求的位置不得参与归一化。",
         select(
           view === "tail" ? "合法上下文长度" : "物理分配",
@@ -1814,6 +1947,19 @@ function renderKernelFoundation(id, view, s) {
       );
     }
     case "kernel-tuning": {
+      if (view === "experiment") {
+        const writes = c ? 32 : 24;
+        return frame(
+          table(["候选（BM=4,BN=2）", "有边界Mask", "遗漏尾部Mask"], [
+            ["任务要求输出", "6×4=24个元素", "相同24个元素"],
+            ["实际写入位置数", 24, 32],
+            ["越界写入位置数", 0, 8],
+            ["能否进入计时比较", "正确性通过后可以", "不能：已改变合法任务"],
+          ]) + metrics([["当前候选写入数", writes], ["当前候选资格", c ? "排除：8个越界写" : "可以继续核对数值后测量"]]),
+          "这张表给出由索引范围可证明的错误，不捏造耗时排名。先恢复相同任务语义，再固定设备、dtype、预热与统计方法比较候选。",
+          select("候选的尾部处理", [[0, "合法Mask"], [1, "遗漏Mask"]], s),
+        );
+      }
       const bm = c ? 4 : 2,
         bn = 2,
         grid = Math.ceil(6 / bm) * Math.ceil(4 / bn),
@@ -2177,18 +2323,18 @@ function renderSystemFoundation(id, view, s) {
           text(355, 65, "NUMA节点1") +
           node(90, 125, "CPU0", "线程", "input") +
           node(mem, 195, "P2", "数据页", "input") +
-          node(295, 285, "GPU", "设备", "input") +
+          node(150, 285, "GPU", "接节点0", "input") +
           line(270, 100, 340, 100, "reference");
         z += c
-          ? line(115, 125, 425, 195) + line(450, 220, 320, 285)
-          : line(110, 145, 125, 170) + line(160, 220, 270, 285);
+          ? line(115, 125, 425, 195) + line(450, 220, 175, 285)
+          : line(110, 145, 125, 170) + line(140, 220, 150, 260);
         return frame(
           svg(z, "主机数据页归属与跨节点路径", 330) +
             metrics([
               ["数据页所在节点", c ? 1 : 0],
               ["能否由图直接算带宽", "不能，链路和争用需实际测量"],
             ]),
-          "边表示当前数据页涉及的访问路径，外框是NUMA归属，不是执行阶段。图中距离不等于真实链路延迟。",
+          "本例明确假定GPU接在节点0，远端页在节点1；边表示所涉及的访问路径，外框是NUMA归属。真实设备连接须实际检查，图中距离不等于链路延迟。",
           select(
             "页分配位置",
             [
@@ -2354,6 +2500,16 @@ function renderSystemFoundation(id, view, s) {
       );
     }
     case "collective-topology": {
+      if (view === "topology") {
+        const d = ringTopology(!!c);
+        return frame(
+          array(d.nodes.map((node, rank) => `Rank${rank}@节点${node}`), "固定逻辑环0→1→2→3→0；改变Rank到节点的放置") +
+            table(["逻辑环边", "源节点→目标节点", "跨节点", "单Rank全程发出Byte"], d.edges.map((edge) => [`R${edge.from}→R${edge.to}`, `${edge.sourceNode}→${edge.targetNode}`, edge.sourceNode === edge.targetNode ? "否" : "是", edge.bytes])) +
+            metrics([["全环单向发出Byte", d.totalBytes], ["其中经过跨节点边的Byte", d.crossNodeBytes]]),
+          "四Rank、每Rank输入16Byte、指定理想ring，单Rank发送24Byte。放置改变时总发送仍为96Byte，但跨节点部分从48变96。此处未计实际路由、协议或重叠，不能把跨节点量翻倍当作时延翻倍。",
+          select("Rank放置", [[0, "同节点相邻"], [1, "两节点交错"]], s),
+        );
+      }
       const p = c ? 4 : 2,
         d = N.ringState(p, step);
       let z =
@@ -2570,6 +2726,18 @@ function renderEmbodiedFoundation(id, view, s) {
     }
     case "action-representation": {
       const d = N.actionEncoding(!!c);
+      if (view === "anchor") {
+        const decoded = c ? N.cumsum(d.relative).map(v=>v+10) : d.relative.map(v=>v+10);
+        return frame(
+          array(d.absolute,"要表达的绝对目标") +
+            array(d.relative,"所有目标都减同一个锚点10") +
+            array([0,1,1],"若改用逐步增量，应另编码成这个数组") +
+            array(decoded,c ? "错误：把[0,1,2]当逐步增量累加" : "正确：每项独立加固定锚点10") +
+            metrics([["是否还原原目标",c ? "否，最后一步变成13" : "是"]]),
+          "相对固定锚点与相邻步增量的区别在解码依赖：前者每项加同一基准，后者累加此前增量。这是位置值的教学算例。",
+          select("解释同一数组[0,1,2]",[[0,"固定锚点偏移"],[1,"误当逐步增量"]],s),
+        );
+      }
       return frame(
         array(d.absolute, "训练约定的绝对目标") +
           array(d.relative, "相对固定锚点10的轨迹") +
@@ -2842,16 +3010,17 @@ function renderEmbodiedFoundation(id, view, s) {
       const d = N.klState(false);
       return frame(
         matrices(
-          matrix([d.p], c ? "先验p：本分支停止梯度" : "先验p：允许该项更新"),
-          matrix([d.q], c ? "后验q：允许该项更新" : "后验q：本分支停止梯度"),
+          matrix([d.p], c ? "先验p：本分支停止梯度" : "先验p：原始KL开放梯度路径"),
+          matrix([d.q], c ? "后验q：原始KL开放梯度路径" : "后验q：本分支停止梯度"),
         ) +
           array(d.terms, "各项 qᵢ ln(qᵢ/pᵢ)；单项可为负") +
           metrics([
             ["前向KL / nat", d.kl],
             ["Stop-gradient改变", "参数更新路径，不改变本次前向概率"],
+            ["若再用Dreamer的max(1,KL)", "本例截为1 nat，该KL项梯度为0"],
             ["想象未来时可用", "动态先验；没有未来真实观测后验"],
           ]),
-        "p=[.5,.5]、q=[.8,.2]固定，只比较梯度流向。未执行训练；完整Dreamer有不同损失权重、free bits及其它细节。",
+        "p=[.5,.5]、q=[.8,.2]固定，先隔离原始KL与Stop-gradient。完整DreamerV3还有1 nat下界：在这组小KL上，两种裁剪项都不会产生KL梯度。其它损失仍可能更新共享参数；此图未训练模型。",
         select(
           "被固定的分支",
           [
@@ -2988,7 +3157,8 @@ function renderGpuFoundation(id, view, s) {
       );
     }
     case "shared-bank": {
-      const mode = s.case % 4,
+      const modes = view === "map" ? [1, 0, 2, 3] : view === "padding" ? [2, 1, 0, 3] : [3, 1, 2, 0],
+        mode = modes[s.case % 4],
         d = N.banks(mode);
       let z =
         text(25, 20, "纵轴=Bank编号，横轴=Lane；同Bank不同Word才是本例冲突") +
@@ -3021,17 +3191,21 @@ function renderGpuFoundation(id, view, s) {
         "假设32Bank、标量32-bit读；Padding33的列读分散Bank。广播相同字与32个不同字同Bank不是同一情况，未预测GPU周期。",
         select(
           "访问方式",
-          [
-            [0, "连续Stride1"],
-            [1, "列读Stride32"],
-            [2, "Padding33"],
-            [3, "同字广播"],
-          ],
+          modes.map((mode, index) => [index, ["连续Stride1", "列读Stride32", "Padding33", "同字广播"][mode]]),
           s,
         ),
       );
     }
     case "occupancy-resources": {
+      if (view === "eligible") {
+        const eligible = c ? 2 : 0;
+        return frame(
+          table(["Warp", "是否驻留", "下一指令状态", "本周期是否发射"], Array.from({ length: 8 }, (_, i) => [`W${i}`, "是", i < eligible ? "就绪" : "等数据", i === 0 && eligible ? "是：本例单发射槽" : "否"])) +
+            metrics([["Occupancy", "100%（8/8）"], ["Eligible", eligible], ["Issued", eligible ? 1 : 0]]),
+          "固定8个驻留Warp，只改变下一指令的依赖是否已满足。两种情况Occupancy相同，发射却不同；单发射槽与这组就绪状态均为人工例，不是实际GPU周期。",
+          select("当前依赖状态", [[0, "全部等数据"], [1, "W0/W1数据已到"]], s),
+        );
+      }
       const d = N.residency(c ? 96 : 32, 8);
       return frame(
         bars(Object.entries(d.limits), "各资源允许的CTA数", 8) +
@@ -3059,7 +3233,7 @@ function renderGpuFoundation(id, view, s) {
       );
     }
     case "measurement-stability": {
-      const d = N.measurement(view === "cold" ? false : !!c);
+      const d = N.measurement(view === "cold" ? false : !c);
       return frame(
         curve(
           [
@@ -3090,8 +3264,8 @@ function renderGpuFoundation(id, view, s) {
           : select(
               "B的运行序列",
               [
-                [0, "首条冷启动30ms"],
-                [1, "8/8/8/14/14ms"],
+                [0, "8/8/8/14/14ms"],
+                [1, "首条冷启动30ms"],
               ],
               s,
             ),

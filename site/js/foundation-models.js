@@ -18,7 +18,7 @@ export const modelCourses = [
         "tokens",
         "文本怎样变成ID",
         "同一句话为什么可能不是逐字一个Token？",
-        "本例词表含“推理”“系统”和单字备用项。切换合并规则，比较Token边界与ID数量；这不是某个真实模型的分词结果。",
+        "先把“推理系统”切成词表中的片段，再把片段换成整数ID。允许合并时是[推理,系统]→[0,1]；拆开时是[推,理,系统]→[2,3,1]。图里的匹配规则和词表都是自设的，不是某个模型的真实分词结果。",
       ),
       page(
         "lookup",
@@ -31,7 +31,7 @@ export const modelCourses = [
         "head",
         "隐藏向量回到词表",
         "H维状态怎样变成V个候选词分数？",
-        "输出头把隐藏向量投影到词表轴，之后还需要采样或选择。输入Embedding与输出头可能绑权重，也可能不绑，必须查模型配置。",
+        "这里的h是假定已经走完模型层的隐藏状态，不能直接把Embedding当成最终预测。输出头用h与每个候选词的权重向量做点积，得到V个logits；它们仍是分数，下一步还需选择或采样。输入Embedding与输出头可共享权重，但是否共享要看模型。",
         { formula: true, quiz: true },
       ),
     ],
@@ -41,14 +41,14 @@ export const modelCourses = [
     derive: [
       "教学Embedding有4行、每行2维；输入ID=[2,0]。",
       "查行得到2×2隐藏矩阵；编号2本身不是一个两倍大的向量。",
-      "输出头W为4×2，单个隐藏向量h为2维，hWᵀ得到4个词表分数。",
+      "另给最后一层隐藏向量h=[1,1]、输出头W=[[1,0],[0,1],[1,1],[-1,0]]；四个点积是[1,1,2,−1]。这不是仅由Embedding算完了整个模型。",
     ],
     code: "E=[[1,0],[0,1],[1,1],[-1,0]]\nids=[2,0]\nX=[E[i][:] for i in ids]\nassert X==[[1,1],[1,0]]",
     quiz: [
-      "Embedding矩阵[4,2]、ID序列长度3，输出Shape是什么？",
-      ["[3,2]", "[4,3]", "[3,4,2]"],
+      "h=[1,1]与四行输出权重相乘得到[1,1,2,−1]，哪项判断成立？",
+      ["词2得分最高，但这些数还不是归一化概率", "词2已经作为下一输入完成了模型计算", "负得分意味着这一词没有词表ID"],
       0,
-      "每个ID读取一行2维向量，共3行；不复制整张词表。",
+      "输出头把隐藏轴投到词表轴；Softmax、筛选和采样是后续步骤，负logit也可以有正概率。",
     ],
     limit:
       "自设词表与权重不代表真实语言模型；特殊Token、模板和分词规范需按Tokenizer配置核对。",
@@ -62,26 +62,25 @@ export const modelCourses = [
     why: "只理解QK计算会漏掉投影、MLP和残差的计算与访存；不同架构的归一化位置也不同。",
     prereqs: [
       ["token-embedding", "输入层将离散ID转为可计算的隐藏向量。"],
-      ["fused-norm", "先理解归一化的跨元素依赖与门控计算。"],
     ],
     source: "https://arxiv.org/abs/1706.03762",
     section:
       "Transformer原论文的Attention、FFN和残差；本课采用明确标注的Pre-Norm教学变体，非原论文Post-Norm结构。",
     terms:
-      "residual|保留输入并与子层输出相加的路径;Pre-Norm|子层前进行归一化;FFN/MLP|逐Token的前馈网络;hidden axis|每个Token内部的特征轴;sequence axis|不同Token位置组成的轴",
+      "residual|保留输入并与子层输出相加的路径;Pre-Norm|子层前进行归一化;RMSNorm|每行除以平方均值加ε后的平方根，本例缩放权重为1;FFN/MLP|逐Token的前馈网络;hidden axis|每个Token内部的特征轴;sequence axis|不同Token位置组成的轴",
     chapters: [
       page(
         "residual",
         "同一输入走了哪两条路",
         "残差相加为什么不能替换成只输出子层结果？",
-        "图中保留输入x的身份和子层贡献。x=[1,2]、子层输出=[0.5,−0.5]时，残差得到[1.5,1.5]；删除旁路会改变信息与数值。",
+        "从同一个2×2隐藏矩阵出发：先逐行RMSNorm，算缩放因果Attention，与原输入相加得U；再对U归一化，经FFN，与U相加得Y。逐项切换图中阶段，追踪Token0和Token1的两次旁路。Q/K/V和输出投影本例都取单位矩阵，省略位置编码。",
+        { formula: true },
       ),
       page(
         "axes",
         "Attention与FFN各混合哪条轴",
         "为何FFN不直接把不同Token的行相加？",
-        "Attention通过合法Key位置混合序列信息；FFN对各行共享权重，主要在特征轴内变换。图对照同一2×2矩阵的行间配对与行内扩维。",
-        { formula: true },
+        "先保持Token1的输入不变，只改Token0。因果Attention中，Token1可以读Token0，因此其输出可能改变；单独的FFN对各行共享权重，Token1不会因为另一行改变而改变。矩阵乘是否混合序列，取决于被相乘的轴。",
       ),
       page(
         "expand",
@@ -95,9 +94,9 @@ export const modelCourses = [
       "<mrow><mi>u</mi><mo>=</mo><mi>x</mi><mo>+</mo><mi>Attn</mi><mo>(</mo><mi>Norm</mi><mo>(</mo><mi>x</mi><mo>)</mo><mo>)</mo><mo>,</mo><mi>y</mi><mo>=</mo><mi>u</mi><mo>+</mo><mi>FFN</mi><mo>(</mo><mi>Norm</mi><mo>(</mo><mi>u</mi><mo>)</mo><mo>)</mo></mrow>",
     ),
     derive: [
-      "残差输入[1,2]，Attention子层贡献[0.5,−0.5]，相加得[1.5,1.5]。",
+      "本例X=[[1,−2],[2,1]]，两行RMS分母均为√(2.5+10⁻⁶)。Token0受因果Mask限制，只能读取归一化后的自身Value。第一次残差始终是U=X+Attention输出。",
       "独立FFN小例用x=[1,−2]、Up列[1,0]、[0,1]、[1,1]，得到[1,−2,−1]。",
-      "ReLU后[1,0,0]，Down取前两列得[1,0]；这一步的数值例专门隔离FFN，不冒充整层实算。",
+      "ReLU后[1,0,0]，Down权重[[1,0],[0,1],[1,1]]把第3个中间分量同时加到两个输出，得到[1,0]。独立FFN例隔离轴变换；完整层图则以Norm(U)为FFN输入，再将结果加回U。",
     ],
     code: "x=[1,-2]\nup=[x[0],x[1],x[0]+x[1]]\nact=[max(0,v) for v in up]\ndown=[act[0]+act[2],act[1]+act[2]]\nassert down==[1,0]",
     quiz: [
@@ -140,8 +139,13 @@ export const modelCourses = [
         "stop",
         "停止之后释放什么",
         "EOS或长度上限出现时，为什么不应继续无限安排？",
-        "根据请求策略结束输出，撤销不再需要的计算与缓存引用，并保留返回结果。EOS是否生效受配置影响，不是所有字符串相同就自动结束。",
-        { quiz: true, code: true },
+        "采样结果加入输出后，先检查EOS和新增长度上限；满足停止条件就不再为这个Token启动普通下一步。EOS是配置的Token ID，文本恰好包含“EOS”不等于结束。已提交的工作还要完成其使用，缓存也需满足引用和在途访问条件后才能安全复用。",
+        { quiz: true, code: true, evidence: {
+          question: "新增上限为2，刚选出第二个非EOS Token。普通生成循环下一步应做什么？",
+          options: ["再算该Token的KV后才允许停止", "保留输出并停止新增计算，回收仍遵守在途依赖", "为了停止必须从输出删去这个Token"],
+          correct: 1,
+          explain: "长度上限按已生成Token计数，达到上限后不需要下一轮分布；停止输出与缓冲区可复用是不同条件。",
+        } },
       ),
     ],
     formula: math(
@@ -152,7 +156,7 @@ export const modelCourses = [
       "选中后序列长度3，已计算位置仍可能是2。",
       "下一步计算该Token后已计算位置变3，再选择后续Token；长度或EOS策略决定是否继续。",
     ],
-    code: "generated=[]\nfor step in range(max_new_tokens):\n    token=sample(next_logits)\n    generated.append(token)\n    if token in eos_ids: break\n    next_logits=model_step(token,kv) # 生成循环骨架",
+    code: "# next_logits来自Prompt前向；普通单候选生成的教学骨架\ngenerated=[]\nfor step in range(max_new_tokens):\n    token=sample(next_logits)\n    generated.append(token)\n    if token in eos_ids or len(generated)==max_new_tokens:\n        break  # 最后选出的Token不必再计算其KV\n    next_logits=model_step(token,kv)\n# 终止与安全回收分开：等待在途使用完成，再释放本请求引用",
     quiz: [
       "Prompt已计算2位置，刚选出第一个新Token，序列长3。KV是否一定已有3位置？",
       ["一定", "不一定，新Token可能还没经过后续前向", "KV只能有1位置"],
@@ -177,9 +181,9 @@ export const modelCourses = [
     ],
     source: "generation",
     section:
-      "GenerationConfig：temperature、top_k、top_p；本例分别展示规则，组合顺序需看后端。",
+      "GenerationConfig：temperature、top_k、top_p；本图组合明确采用温度→Top-k→重新归一→Top-p→重新归一，真实后端还需核对处理顺序。",
     terms:
-      "temperature|对Logits缩放的正数;Top-k|只保留评分最高的k项;Top-p|按概率从大到小保留累计至少p的最小集合;CDF|排序后概率的累计和;renormalize|对保留部分重新归一",
+      "temperature|用正数T除Logits，调整分数差距;Top-k|保留评分最高的k项;Top-p|按概率降序保留累计至少p的最小前缀;CDF|沿选定Token顺序累加概率形成的区间边界，不要求先按概率排序;renormalize|除以保留质量，让剩余概率和回到1",
     chapters: [
       page(
         "temperature",
@@ -190,9 +194,9 @@ export const modelCourses = [
       ),
       page(
         "nucleus",
-        "沿累计质量确定集合",
-        "概率[0.6,0.25,0.1,0.05]，Top-p=0.8保留几项？",
-        "累计依次0.6、0.85、0.95、1，最小满足集合有两项。归一后概率为0.6/0.85和0.25/0.85；这不是选一个最接近0.8的词。",
+        "按个数与按质量筛选",
+        "Top-k限制候选个数，Top-p限制累计质量，两者怎样组合？",
+        "不限制k时，原分布[0.6,0.25,0.1,0.05]到第二项累计0.85，p=0.8保留前两项。若先取k=2，剩余分布先归一为[12/17,5/17]；此时p=0.7只留词0，因为12/17已大于0.7。切换k和p，观察候选数与分母分别怎样变化。",
         { code: true },
       ),
       page(
@@ -200,7 +204,12 @@ export const modelCourses = [
         "一个随机数怎样选词",
         "CDF区间和随机数0.75如何对应一个Token？",
         "在固定Token顺序下用概率区间覆盖[0,1)。随机数落在哪段就选谁；相同分布并不要求两次抽样输出相同Token。",
-        { quiz: true },
+        { quiz: true, evidence: {
+          question: "Top-p后概率为[12/17,5/17,0,0]，u=0.75落在哪个Token区间？",
+          options: ["词0，因为它概率最大", "词1，因为12/17≤0.75<1", "词2，因为0.75最接近它的编号"],
+          correct: 1,
+          explain: "CDF按词序建立[0,12/17)、[12/17,1)两段。抽样不是每次取最大概率，也不是寻找离u最近的概率值。",
+        } },
       ),
     ],
     formula: math(
@@ -211,7 +220,7 @@ export const modelCourses = [
       "Top-p=0.8保留前两项，总质量0.85。",
       "重新归一为[12/17,5/17,0,0]，总和1；随机数0.75落入第二项区间。",
     ],
-    code: "p=[.6,.25,.1,.05]; total=0; keep=[]\nfor i,v in enumerate(p):\n keep.append(i); total+=v\n if total>=.8: break\nout=[p[i]/total if i in keep else 0 for i in range(4)]",
+    code: "prob=[.6,.25,.1,.05]; k=2; top_p=.8\norder=sorted(range(4),key=lambda i:prob[i],reverse=True)[:k]\nmass_k=sum(prob[i] for i in order)\nafter_k={i:prob[i]/mass_k for i in order}\nkeep=[]; mass=0\nfor i in order:\n keep.append(i); mass+=after_k[i]\n if mass>=top_p: break\nout=[after_k.get(i,0)/mass if i in keep else 0 for i in range(4)]",
     quiz: [
       "Top-p=0.8在上述分布中会保留多少原始概率质量？",
       ["恰好0.8", "0.85，因为必须保留跨过阈值的那一项", "只保留0.6"],
@@ -230,8 +239,8 @@ export const modelCourses = [
     why: "改变连接结构可能改变模型功能；FlashAttention优化精确计算组织，不等同于改成滑窗。",
     prereqs: [
       [
-        "attention-tiling",
-        "精确分块保持原注意力语义，滑窗则改变可见关系，两者必须分别解释。",
+        "llm-block",
+        "先认识Query行、Key列和因果可见性，再比较窗口和跨层传播。",
       ],
     ],
     source: "https://arxiv.org/abs/2310.06825",
@@ -251,14 +260,19 @@ export const modelCourses = [
         "layers",
         "单层窗口与多层传播",
         "一层看不到远处，是否说明任何深层都收不到远处信息？",
-        "信息可通过中间位置逐层传播，但这不等于单层恢复全局Attention。根据两层窗口依赖追踪一个早期位置，说明感受野与直接连接不同。",
-        { quiz: true },
+        "窗口3时，第二层的Query5读取第一层位置3/4/5；第一层位置3又读过原输入1/2/3。因此两层后可能受位置1..5影响，仍到不了位置0，也没有增加单层直连。依赖可达不保证模型完整保留了远处信息。",
+        { quiz: true, evidence: {
+          question: "窗口含当前Token且大小为3，叠两层后Query5可能受哪些原输入影响？",
+          options: ["仍只有3/4/5", "1/2/3/4/5，但这不等于单层直连", "0..5全部，因为有两层"],
+          correct: 1,
+          explain: "第二层读取第一层3/4/5；这些位置的输入依赖并集为1..5。可达表示依赖路径存在，不保证保真保留全部信息。",
+        } },
       ),
       page(
         "implementation",
         "稀疏模式怎样落到算子",
         "减少逻辑连接以后，是否已保证GPU更快？",
-        "不规则索引、块粒度、数据布局和有效Tile利用率会影响实现。固定同一模式比较实现；改变模式时还要核对模型质量。",
+        "把6×6连接矩阵分成2×2 Tile：全因果有21条有效连接，占6个非空Tile；窗口3有15条连接，但仍占5个非空Tile。若每个非空Tile都按4格执行，工作槽只从24降到20，不能用21/15预测加速。FlashAttention可计算不同Mask，它的精确分块组织与改变Mask是两件事。",
         { code: true },
       ),
     ],
@@ -300,7 +314,7 @@ export const modelCourses = [
     source: "vit",
     section: "ViT：图像Patch展平、线性投影及位置表示；数字为教学图像。",
     terms:
-      "Patch|图像中固定大小的局部区域;flatten|按约定次序把区域元素排成向量;projection|把Patch特征映射到隐藏维;position embedding|向Token补充空间位置信息",
+      "Patch|图像中固定大小的局部区域;flatten|按约定次序把区域元素排成向量;projection|把Patch特征映射到隐藏维;position embedding|向Token补充空间位置信息;W/H/P|图像宽度/图像高度/Patch边长，均按像素计",
     chapters: [
       page(
         "patches",
@@ -313,7 +327,7 @@ export const modelCourses = [
         "projection",
         "Patch投影不是查词表",
         "同一位置换像素，向量为什么会变化？",
-        "视觉投影使用Patch里的实际像素特征；文本Embedding按离散ID取行。两者输出都可以是H维，但输入与算子不同。",
+        "追踪Patch0=[0,1,4,5]，乘自设4×2权重后得到[4,6]；把最后一个像素5改成9，输出变[4,10]。投影实际组合像素数值，文本Embedding则按离散ID取行。宽度相同不意味着输入对象或运算相同。",
         { code: true },
       ),
       page(
@@ -321,7 +335,12 @@ export const modelCourses = [
         "分辨率改变后的成本",
         "边长从4翻到8、Patch不变，Token数为何变4倍？",
         "空间两条轴同时扩大，网格从2×2变4×4。全局注意力配对从16变256；这只是该计算部分的规模关系，不是整模型时延16倍。",
-        { quiz: true },
+        { quiz: true, evidence: {
+          question: "Patch边长不变，图像从4×4变8×8，全局Attention配对数怎样变？",
+          options: ["Token数2倍，配对2倍", "Token数4倍，配对16倍；不等于总时延16倍", "词表大小决定配对数"],
+          correct: 1,
+          explain: "两条空间轴各翻倍，4个Patch变16个；完整配对4²变16²。编码器其它部分和硬件效率不由这一个计数决定。",
+        } },
       ),
     ],
     formula: math(
@@ -371,7 +390,12 @@ export const modelCourses = [
         "两种接口的配对矩阵",
         "拼接自注意力与交叉注意力分别有多大的Q×K区域？",
         "4个视觉、2个文本Token拼接后有6个序列位置，合法连接还受Mask约束。若文本Query交叉读视觉，则配对域是2×4，不是把两个计算都当6×6。",
-        { quiz: true },
+        { quiz: true, evidence: {
+          question: "文本有2个Query，交叉读取4个视觉Key，候选配对域是多少？",
+          options: ["6×6，与拼接自注意力一样", "2×4，还需另行规定Mask和头维", "4×2，Query与Key可随意交换"],
+          correct: 1,
+          explain: "行由Query来源决定，列由Key来源决定。2×4是结构候选域，实际合法连接还受Mask约束。",
+        } },
       ),
       page(
         "cache",
@@ -424,7 +448,7 @@ export const modelCourses = [
         "updates",
         "相同输入，不同状态语义",
         "关联累加与残差纠错在重复Key时为何不同？",
-        "沿相同Key写目标2再写4：累加得到6；β=1的Delta纠错第二次先减旧预测2，再加残差2，得到4。固定大小状态不是共同的精确公式。",
+        "先限定标量Key=1、初态0、无遗忘。写目标2再写4：累加得6；β=1的Delta先减旧预测2，只加残差2，得到4。若Key不归一，β=1并不保证一步对准目标；固定大小状态也不能确定采用了哪种更新式。",
         { code: true },
       ),
       page(
@@ -446,7 +470,7 @@ export const modelCourses = [
       "<mrow><msub><mi>h</mi><mi>t</mi></msub><mo>=</mo><msub><mi>a</mi><mi>t</mi></msub><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>b</mi><mi>t</mi></msub><msub><mi>x</mi><mi>t</mi></msub></mrow>",
     ),
     derive: [
-      "固定关联Key，目标2、4：累加2+4=6。",
+      "固定标量Key=1、初态0、无遗忘，目标2、4：累加2+4=6。",
       "Delta β=1：旧预测2，残差4−2=2，更新到4。",
       "SSM例a=0.5、b=1、x=[2,4]、h0=0：h1=2，h2=5；不同机制不能混算。",
     ],

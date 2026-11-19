@@ -13,19 +13,79 @@ export const softmax = (a, T = 1) => {
 };
 export const cumsum = (a) => a.map((_, i) => total(a.slice(0, i + 1)));
 export function sampling(T = 1, p = 0.8, k = 4) {
+  if (!(T > 0) || !(p > 0 && p <= 1) || !Number.isInteger(k) || k < 1 || k > 4)
+    throw new RangeError("sampling expects T>0, 0<p<=1 and 1<=k<=4");
   const probabilities = softmax([0.6, 0.25, 0.1, 0.05].map(Math.log), T),
-    order = [0, 1, 2, 3].sort((a, b) => probabilities[b] - probabilities[a]);
-  let mass = 0;
+    order = [0, 1, 2, 3].sort((a, b) => probabilities[b] - probabilities[a]),
+    topK = order.slice(0, k),
+    topKMass = total(topK.map((i) => probabilities[i])),
+    afterTopK = probabilities.map((x, i) => topK.includes(i) ? x / topKMass : 0);
+  // Explicit teaching order: temperature -> Top-k -> renormalize -> Top-p.
+  // Applying Top-p to the original distribution after Top-k is a different rule.
+  let nucleusMass = 0;
   const keep = [];
-  for (const i of order.slice(0, k)) {
+  for (const i of topK) {
     keep.push(i);
-    mass += probabilities[i];
-    if (mass >= p) break;
+    nucleusMass += afterTopK[i];
+    if (nucleusMass >= p - 1e-12) break;
   }
+  const mass = total(keep.map((i) => probabilities[i]));
   const filtered = probabilities.map((x, i) =>
     keep.includes(i) ? x / mass : 0,
   );
-  return { probabilities, order, keep, mass, filtered, cdf: cumsum(filtered) };
+  return { probabilities, order, topK, topKMass, afterTopK, keep, nucleusMass, mass, filtered, cdf: cumsum(filtered) };
+}
+/** Complete small Pre-Norm decoder block; identity Q/K/V/O, no position encoding. */
+export function transformerBlockExample(changeFirstToken = false) {
+  const X = changeFirstToken ? [[2, -1], [2, 1]] : [[1, -2], [2, 1]],
+    epsilon = 1e-6,
+    normalize = (A) => A.map((row) => {
+      const denominator = Math.sqrt(total(row.map((v) => v * v)) / row.length + epsilon);
+      return row.map((v) => v / denominator);
+    }),
+    normalized = normalize(X),
+    scores = mm(normalized, transpose(normalized)).map((row, i) =>
+      row.map((value, j) => j > i ? -Infinity : value / Math.sqrt(2))),
+    weights = scores.map((row) => softmax(row)),
+    attention = mm(weights, normalized),
+    residual = X.map((row, i) => add(row, attention[i])),
+    ffInput = normalize(residual),
+    upWeight = [[1, 0, 1], [0, 1, 1]],
+    downWeight = [[1, 0], [0, 1], [1, 1]],
+    up = mm(ffInput, upWeight),
+    activated = up.map((row) => row.map((v) => Math.max(0, v))),
+    down = mm(activated, downWeight),
+    output = residual.map((row, i) => add(row, down[i]));
+  return { X, epsilon, normalized, scores, weights, attention, residual, ffInput, upWeight, downWeight, up, activated, down, output };
+}
+/** Ordinary single-sequence autoregression: a sample does not compute its own KV. */
+export function generationTrace(maxNew = 2, eosAt = 2) {
+  if (!Number.isInteger(maxNew) || maxNew < 0 || (eosAt !== null && (!Number.isInteger(eosAt) || eosAt < 1)))
+    throw new RangeError("generationTrace expects a nonnegative limit and a positive EOS position or null");
+  const tokens = ["P0", "P1"], events = [];
+  let computed = 0, generated = 0;
+  const record = (event, label, terminal = false) => events.push({ event, label, tokens: [...tokens], computed, generated, terminal });
+  record("input", "Prompt输入");
+  if (maxNew === 0) {
+    record("stop", "新增上限0：无需模型前向", true);
+    return events;
+  }
+  computed = tokens.length;
+  record("prefill", "Prefill完成：已有下一Token分数，尚未采样");
+  while (generated < maxNew) {
+    const eos = generated + 1 === eosAt,
+      token = eos ? "EOS" : `T${generated}`;
+    tokens.push(token);
+    generated++;
+    record("sample", `选中${token}：尚未计算它的KV`);
+    if (eos || generated === maxNew) {
+      record("stop", eos ? "EOS结束" : "长度上限结束", true);
+      break;
+    }
+    computed = tokens.length;
+    record("decode", `Decode完成：${token}的KV就绪，得到下一组分数`);
+  }
+  return events;
 }
 export function addressView(transposed = false, mutate = false) {
   const storage = [0, 1, 2, 3, 4, mutate ? 99 : 5],

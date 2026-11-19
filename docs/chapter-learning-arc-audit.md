@@ -1,40 +1,40 @@
-# Chapter learning-arc audit · 2026-11-19
+# 全站章节与系统主线审查 · 2026-11-19
 
-## Acceptance rule
+## 范围与验收口径
 
-Every chapter and each major concept inside it should form a closed learning arc:
+本轮审查覆盖现有 **6 大领域、30 单元、79 门独立课程、281 个章节**。保持所有课程/章节 ID、原笔记、自评、导入导出版本及私人同步协议。没有将旧“已掌握”记录扩展成新内容已掌握。
 
-**Question / motivation → prerequisite context → first-use term definitions → mechanism and worked example → evidence / boundary → explicit answer → next-step bridge.**
+审查标准是：章节的问题、先修、术语、对象图、数值、公式/骨架、判断题和结论是否在解释同一机制。图按对象选择矩阵、概率质量、地址映射、状态事件、时间线或资源账本；不靠统一的六段文案宣称完成。
 
-This is a semantic rule, not a fixed six-section layout. Choose the representation that explains the knowledge: architecture map, data trace, tensor example, derivation, source walkthrough, timeline, resource model, or experiment.
+| 审查组 | 课程 | 章节 | 完整记录 |
+|---|---:|---:|---|
+| 模型、注意力、状态与具身 | 21 | 83 | [逐章记录](review-model-lessons.md) |
+| 编译、接口与算子 | 28 | 94 | [逐章记录](review-compiler-kernel-lessons.md) |
+| 引擎、系统与 GPU | 30 | 104 | [逐章记录](review-engine-system-lessons.md) |
+| 合计 | 79 | 281 | 三份记录覆盖全部现有章节 |
 
-## Implemented in this change
+“已审查”包含修正错配和核对后保留两种结果；不表示全部章节都重新写了一遍，更不表示穷尽所有生产实现。
 
-- Added site/js/chapter-arc.js with 42 authored chapter arcs for the first high-priority set.
-- The focused reader renders each arc's opening context and first-use terms before the mechanism figure, then renders the takeaway and bridge after the mechanism and before the evidence disclosure.
-- Added tests that validate every authored arc maps to a real chapter, includes opening/terms/takeaway/bridge, and appears in the correct reading order.
-- Existing course IDs, chapter IDs, progress data and private learning sync are not changed by the arc metadata.
+## 本轮关键改动
 
-## First-priority topics
+- **主线成为有语义的关系图。** 普通请求显示 Prefill、采样、停止判定与 Decode 回环，控制面逐轮参与；编译图分别显示 PyTorch、直接 Triton 与预编译库的入口，并在运行时派发汇合。VLA 和世界模型按自己的工作负载进入课程。
+- **追踪同一请求的真实逻辑边界。** 教学请求 R7 在长度上限、EOS 和在途取消三个分支中，分别记录已生成 Token、已计算位置、保留的 KV 槽与完成依赖。最后一个返回 Token 可以没有自己的 KV；取消不能提前释放在途缓冲。
+- **修复双向导航。** 主线里的课程链接直接进入现有阅读器。79 门课各有明确主位置，跨阶段关联不会覆盖它；课程可以返回对应主线位置。
+- **阅读内容跟着章节走。** 章级 evidence 可以覆盖数学、推导、骨架、术语与题目，防止同课程的另一道例子串到当前章。42 个重点章节保留必要的首用释义和承接，移除重复词汇卡；课程目标按需展开，让问题与图解更靠前。
+- **修正机制本身。** 包括完整 Transformer 小层、Top-k/Top-p 分母、生成/计算两事件、滑窗可达性、MoE 分桶矩阵、Delta 单位 Key 条件、SSA 值身份、合法融合反例、分页尾槽、RMS 残差融合、取消回收、异步启动成本、TTFT/ITL 与 PD 交付边界、Warp 资源、Shared 复用和后端选择。具体对象及独立参考见分组记录。
+- **测试与发布分离。** PR 测试不再绑定 github-pages 发布环境。原失败注释为“PR merge ref 不允许部署到 github-pages”；保护规则保留，只有 main push 或 main 手动工作流可以发布。发布依赖数值和浏览器两类验收。
 
-| Topic | Chapters with explicit arcs |
-|---|---:|
-| Gated DeltaNet / linear state | 9 |
-| Triton compiler lowering | 7 |
-| MoE routing / EP | 6 |
-| Attention patterns | 3 |
-| Tokenizer / Embedding / output head | 3 |
-| Transformer layer | 3 |
-| Generation state | 2 |
-| Sampling distribution | 3 |
-| Request lifecycle | 3 |
-| State families | 3 |
-| **Total** | **42** |
+## 可复现验证
 
-## Not yet complete
+计算和数据：`npm test`。
 
-The remaining independent courses and all other mechanism chapters still need the same semantic audit. Do not infer completeness from the 42 priority arcs or from the presence of terms, formulas, quizzes, diagrams or source links.
+浏览器：隔离 Chromium 上依次运行 `audit-curriculum.cjs`、`audit-chapters.cjs`、`audit-gateways.cjs`、`audit-curriculum-navigation.cjs`、`audit-diagram-geometry.cjs`、`audit-system-spine.cjs`。覆盖 1365/390/360px、全部课程/章节、双向主线导航、参数与测验、明暗主题、键盘、地图缩放、新旧合成笔记/个人图谱往返、无效备份保护。只使用合成个人数据，不登录私人同步服务。
 
-For the next audit pass, inspect all chapters in course-registry.js, mechanism-curriculum.js and the seven foundation-*.js files. For each chapter, record the question it answers and why it appears here; prerequisites needed before this point; every first-use term, symbol and acronym and where it is explained; whether the mechanism and worked example actually answer the question; assumptions and limits; explicit conclusion; and the reason the next chapter follows or the return path to the global system spine.
+当前本地 Node 检查已通过；本地 Chromium 因环境拒绝 socket 无法启动。新增 GitHub Actions 浏览器任务保存逐项 JSON、日志和截图。**本文件此版本尚未把远端浏览器验收记为通过；最终结果在验收完成后补录。**
 
-Report missing links rather than filling them with generic prose. Prefer fixing prerequisite order or adding a short bridge over adding another disconnected glossary or FAQ.
+## 证据与边界
+
+- 课程使用公开论文、官方文档及明确的教学对象；动态文档的核对日期不等同固定提交逐函数审计。
+- 本轮没有真实 GPU 编译 dump、SASS、NCU/NSYS 性能采集，没有机器人或生产流量实验。人工数字、节拍、词表 ID 与资源上限均按假设展示。
+- 自动检查验证模型不变量和页面行为；内容审查核对图文对应及推理边界。两者都不能证明真人已经理解或能迁移到生产任务。
+- GitHub Pages 与可选 Cloudflare 同步 Worker 是不同发布链；未改动 Worker、OAuth、密钥、私人仓库内容或同步协议。

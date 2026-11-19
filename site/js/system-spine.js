@@ -1,4 +1,6 @@
 import { allCourseById } from "./course-registry.js";
+import { runtimeDiagram, compileDiagram } from "./spine-diagrams.js";
+import { renderRequestTrace } from "./system-trace.js";
 
 const runtimeStages = [
   {
@@ -54,7 +56,7 @@ const runtimeStages = [
   {
     id: "stop", lane: "runtime", title: "停止、取消与状态收尾", short: "停止",
     question: "什么时候不再安排下一轮计算？",
-    summary: "每次采样后检查 EOS、最大新增 Token 数、停止字符串、取消或错误状态。满足终止条件后不再为该请求安排后续 Decode，并进入结果与资源收尾。",
+    summary: "采样后检查 EOS、最大新增 Token 数和停止字符串；取消或故障也可在计算在途时异步到达。进入终态后不再安排后续 Decode，并按完成依赖收尾。",
     objects: "新采样 Token、EOS / stop 条件、请求终态、在途 Kernel、KV Block 引用。",
     control: "请求状态机决定继续、完成、取消或失败；取消消息不会自动撤销已经提交到 GPU 的工作。",
     compute: "终止后通常不再启动下一次模型前向；已提交工作仍需等待真实完成边界，才能安全回收其使用的缓冲区。",
@@ -194,7 +196,7 @@ const typedRelations = [
   { from: "请求状态", to: "Scheduler 决策", type: "controls", reason: "Running / Waiting、已计算 Token 和取消状态决定这一轮有哪些请求可被安排。" },
   { from: "Scheduler 输出", to: "Model Runner 输入", type: "schedules", reason: "本轮 Token 数、位置和请求映射决定 Runner 需要组装的张量与元数据。" },
   { from: "Hidden State", to: "Logits", type: "produces", reason: "输出投影把最后位置的隐藏向量映射到词表分数；分数还不是概率。" },
-  { from: "Logits", to: "Sampling", type: "consumes", reason: "温度、筛选和归一化读取 Logits，形成候选概率分布并选择 Token。" },
+  { from: "Sampling", to: "Logits", type: "consumes", reason: "温度、筛选和归一化读取 Logits，形成候选概率分布并选择 Token。" },
   { from: "Sampled Token", to: "下一轮 Decode 输入", type: "feeds", reason: "本轮采样出的离散 ID 成为下一次模型前向的输入；该 Token 的 KV 通常也在那次前向中产生。" },
   { from: "编译产物 / 预编译库", to: "Backend Dispatch", type: "provides", reason: "派发逻辑从可用 Kernel 实现中选择，而不是在每个 Token 上重新编译整个模型。" },
   { from: "Backend Dispatch", to: "GPU", type: "launches", reason: "Runtime / Driver 按 Stream 和依赖提交 Kernel；GPU 再执行实际指令。" },
@@ -214,111 +216,97 @@ const extensions = [
   }
 ];
 
-const allStages = [...runtimeStages, ...compileStages, executionStage];
-const stageById = new Map(allStages.map((item) => [item.id, item]));
-const explicitStage = new Map();
-for (const item of runtimeStages) {
-  for (const id of item.courses) if (!explicitStage.has(id)) explicitStage.set(id, item.id);
-}
-for (const item of compileStages) {
-  for (const id of item.courses) explicitStage.set(id, item.id);
-}
-for (const id of executionStage.courses) explicitStage.set(id, executionStage.id);
+const workloadStages = [
+  {
+    id: "workload-vla", lane: "workload", title: "VLA：观测到动作闭环", short: "VLA",
+    question: "动作块什么时候生成、什么时候真正执行？",
+    summary: extensions[0].summary,
+    objects: "带时间戳与坐标系的观测、动作表示、Action Chunk、控制队列与执行节拍。",
+    control: "控制器按物理时间消费动作；异步模型推理要检查新旧观测、队列余量与过期动作。",
+    compute: "视觉编码、跨模态条件和动作预测属于模型计算；Flow / Diffusion 的内部迭代不等同于机器人控制周期。",
+    boundary: "LLM 的 Token Decode 回环不能直接套在所有动作策略上。动作生成结束也不代表真实任务已完成。",
+    courses: extensions[0].courses,
+  },
+  {
+    id: "workload-world", lane: "workload", title: "世界模型：估计与预测", short: "世界模型",
+    question: "模型预测的未来由谁使用，能说明什么？",
+    summary: extensions[1].summary,
+    objects: "观测、动作条件、确定性记忆、随机潜状态、预测奖励或生成的视频。",
+    control: "策略或规划器决定是否使用预测结果；训练时的想象轨迹也可能完全离线生成。",
+    compute: "RSSM 的先验/后验更新与视频扩散的多步去噪是不同计算结构，不能只按输出是否像视频分类。",
+    boundary: "预测不自动产生可靠控制；视频清晰度、状态误差、长滚动偏差和闭环成功率需要分别评价。",
+    courses: extensions[1].courses,
+  },
+];
 
-export function spineStageForCourse(courseId) {
-  if (explicitStage.has(courseId)) return explicitStage.get(courseId);
-  const course = allCourseById.get(courseId);
-  if (!course) return "request";
-  return ({
-    model: "prefill",
-    engine: "request",
-    compiler: "compile-source",
-    kernel: "kernel-execution",
-    systems: "request",
-    microarch: "kernel-execution"
-  }[course.module] || "request");
+export const systemSpineStages = [...runtimeStages, ...compileStages, executionStage, ...workloadStages];
+const stageById = new Map(systemSpineStages.map(item => [item.id, item]));
+// Primary locations are authored choices. Repeated cross-links never overwrite them.
+const primaryGroups = {
+  request: ["request-lifecycle", "admission-backpressure", "serving-slo", "process-threads"],
+  prepare: ["token-embedding", "vision-patches", "multimodal-bridge"],
+  prefill: ["llm-block", "transformer-layer", "attention-patterns", "moe-route", "mla-kv", "linear-state", "state-families", "kv-cache", "vllm-scheduler"],
+  sample: ["sampling-distribution", "sampling-kernel"],
+  decode: ["generation-state", "kv-preemption", "spec-decode", "pd-disagg"],
+  "compile-source": ["compiler-lowering", "tensor-address", "ir-ssa"],
+  "compile-capture": ["graph-capture", "symbolic-shapes"],
+  "compile-optimize": ["graph-rewrite", "fusion-legality", "buffer-liveness"],
+  "compile-lower": ["loop-lowering", "triton-tiling", "gpu-layout"],
+  "compile-codegen": ["target-codegen", "compiler-evidence"],
+  "compile-cache": ["compile-cache", "engine-build", "model-loading", "deployment-compatibility"],
+  dispatch: ["backend-dispatch", "runtime-graph", "cuda-context", "host-runtime", "batch-executor", "async-engine", "frameworks"],
+  "kernel-execution": ["gpu-execution", "warp-issue", "occupancy-resources", "memory-route", "shared-bank", "tensorcore-b200", "kernel-tuning", "profiling", "measurement-stability", "reduction-scan", "gather-scatter", "quantized-matmul", "lowbit-formats", "multi-gpu", "collective-topology", "tensor-parallel", "pipeline-parallel", "host-memory-pages", "gemm-tiling", "attention-tiling", "fused-norm", "paged-attention-kernel", "convolution-lowering", "quant-pipeline"],
+  "workload-vla": ["observation-contract", "action-representation", "robot-data", "policy-families", "vla-policy", "closed-loop"],
+  "workload-world": ["world-model", "world-learning", "diffusion-transformer"],
+};
+const primaryStage = new Map();
+for (const [stage, ids] of Object.entries(primaryGroups)) {
+  for (const id of ids) {
+    if (primaryStage.has(id)) throw new Error("Duplicate primary spine location: " + id);
+    primaryStage.set(id, stage);
+  }
+  stageById.get(stage).courses = [...new Set([...stageById.get(stage).courses, ...ids])];
 }
-
+export const spineStageForCourse = id => primaryStage.get(id) || "request";
+export function spineLocationsForCourse(id) {
+  if (!primaryStage.has(id)) return [];
+  return systemSpineStages.filter(s => s.courses.includes(id)).sort((a, b) => Number(b.id === primaryStage.get(id)) - Number(a.id === primaryStage.get(id)));
+}
 export function validateSystemSpine() {
-  const ids = allStages.map((item) => item.id);
-  if (new Set(ids).size !== ids.length) throw new Error("Duplicate system spine stage ID");
-  for (const item of allStages) {
-    for (const courseId of item.courses) {
-      if (!allCourseById.has(courseId)) throw new Error("Unknown course " + courseId + " in " + item.id);
-    }
+  if (stageById.size !== systemSpineStages.length) throw new Error("Duplicate system spine stage ID");
+  for (const [id] of allCourseById) {
+    if (!primaryStage.has(id)) throw new Error("Missing authored spine location: " + id);
+    if (!stageById.get(primaryStage.get(id))?.courses.includes(id)) throw new Error("Missing reverse course link: " + id);
   }
-  for (const lens of crossLenses) {
-    for (const courseId of lens.courses) {
-      if (!allCourseById.has(courseId)) throw new Error("Unknown course " + courseId + " in lens " + lens.id);
-    }
+  for (const group of [...systemSpineStages, ...crossLenses, ...extensions]) {
+    for (const id of group.courses) if (!allCourseById.has(id)) throw new Error("Unknown course " + id + " in " + group.id);
   }
-  for (const relation of typedRelations) {
-    if (!relation.from || !relation.to || !relation.type || !relation.reason) throw new Error("Incomplete typed relation");
-  }
+  for (const r of typedRelations) if (!r.from || !r.to || !r.type || !r.reason) throw new Error("Incomplete typed relation");
   return true;
 }
-
-const esc = (value = "") =>
-  String(value).replace(/[&<>"']/g, (char) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]
-  );
-
+const esc = (value = "") => String(value).replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 function courseLinks(ids) {
-  return ids.map((id) => {
-    const course = allCourseById.get(id);
-    if (!course) return "";
-    return '<button type="button" class="spine-course-link" data-spine-course="' + esc(id) + '"><strong>' + esc(course.title) + '</strong><span>' + esc(course.summary) + '</span></button>';
+  return ids.map(id => {
+    const c = allCourseById.get(id);
+    return `<a class="spine-course-link" data-spine-open-course="${id}" href="#depth/${id}/L2"><strong>${esc(c.title)} →</strong><span>${esc(c.summary)}</span></a>`;
   }).join("");
 }
-
-function station(stage, selected) {
-  return '<button type="button" class="spine-station ' + (selected === stage.id ? "active" : "") + '" data-spine-stage="' + esc(stage.id) + '" aria-pressed="' + (selected === stage.id) + '"><small>' + esc(stage.short) + '</small><strong>' + esc(stage.title) + '</strong></button>';
+function station(s, selected) {
+  return `<a class="spine-station ${selected === s.id ? "active" : ""}" href="#spine/${s.id}" aria-current="${selected === s.id ? "step" : "false"}">${esc(s.short)}</a>`;
 }
-
-function stageDetail(stage) {
-  const laneLabel = stage.lane === "runtime" ? "请求运行路径" : stage.lane === "compile" ? "编译 / 构建路径" : stage.lane === "join" ? "两条路径汇合" : "执行层下钻";
-  return '<section class="spine-detail" aria-live="polite">' +
-    '<header><span class="eyebrow">' + esc(laneLabel) + '</span><h2>' + esc(stage.title) + '</h2><p class="spine-question">' + esc(stage.question) + '</p><p>' + esc(stage.summary) + '</p></header>' +
-    '<div class="spine-facts">' +
-      '<article><h3>数据对象</h3><p>' + esc(stage.objects) + '</p></article>' +
-      '<article><h3>控制与调度</h3><p>' + esc(stage.control) + '</p></article>' +
-      '<article><h3>实际计算</h3><p>' + esc(stage.compute) + '</p></article>' +
-      '<article class="spine-boundary"><h3>边界与常见误解</h3><p>' + esc(stage.boundary) + '</p></article>' +
-    '</div><section class="spine-related"><h3>从这里深入现有课程</h3><div>' + courseLinks(stage.courses) + '</div></section></section>';
+function stageDetail(s) {
+  const first = s.courses.slice(0, 3), rest = s.courses.slice(3);
+  return `<section class="spine-detail" aria-labelledby="spineStageHeading"><header><span class="eyebrow">当前环节</span><h2 id="spineStageHeading" tabindex="-1">${esc(s.title)}</h2><p class="spine-question">${esc(s.question)}</p><p>${esc(s.summary)}</p></header><dl class="spine-facts"><div><dt>追踪的对象</dt><dd>${esc(s.objects)}</dd></div><div><dt>需要分清</dt><dd>${esc(s.boundary)}</dd></div></dl><div class="spine-related"><h3>深入这个环节</h3><div>${courseLinks(first)}</div></div><details class="spine-more"><summary>控制、计算${rest.length ? `与其余 ${rest.length} 门关联课程` : "的职责边界"}</summary><p><strong>控制与调度：</strong>${esc(s.control)}</p><p><strong>实际计算：</strong>${esc(s.compute)}</p><div class="spine-course-list">${courseLinks(rest)}</div></details></section>`;
 }
-
-function lensCards() {
-  return crossLenses.map((lens) =>
-    '<article class="spine-lens"><span class="eyebrow">' + esc(lens.id) + '</span><h3>' + esc(lens.title) + '</h3><p>' + esc(lens.summary) + '</p><div class="spine-chain">' + esc(lens.chain) + '</div><div class="spine-course-list">' + courseLinks(lens.courses) + '</div></article>'
-  ).join("");
+function extras() {
+  return `<section class="spine-extras" aria-label="跨层追踪与扩展"><details><summary>沿同一对象跨章节追踪：五条机制线</summary><div class="spine-lenses">${crossLenses.map(l => `<details class="spine-lens"><summary>${esc(l.title)}</summary><p>${esc(l.summary)}</p><p class="spine-chain">${esc(l.chain)}</p><div class="spine-course-list">${courseLinks(l.courses)}</div></details>`).join("")}</div></details><details><summary>这些连接为什么成立？</summary><div class="spine-relations">${typedRelations.map(r => `<article><h3>${esc(r.from)} <span>${esc(r.type)}</span> ${esc(r.to)}</h3><p>${esc(r.reason)}</p></article>`).join("")}</div></details><details><summary>VLA 与世界模型的输入、输出和循环</summary><div class="spine-extensions">${extensions.map(x => `<article><h3>${esc(x.title)}</h3><p>${esc(x.summary)}</p><a href="#spine/workload-${x.id}">查看这类工作负载 →</a></article>`).join("")}</div></details><details><summary>教学边界与一手依据</summary><p>图描述通用逻辑依赖，不是某一框架逐函数调用图。真实实现可以融合、异步或重排；具体采样顺序、缓存和完成事件须按版本核对。直接 Triton 不要求先经 Dynamo；手写 CUDA 和预编译库也有自己的路径。</p><p>参考：<a href="https://huggingface.co/docs/transformers/main/en/generation_strategies" target="_blank" rel="noopener">Transformers 生成策略</a> · <a href="https://pytorch.org/blog/triton-kernel-compilation-stages/" target="_blank" rel="noopener">Triton 编译阶段</a>。按 2026-11-19 核对；动态文档不等于固定版本源码审计。</p></details></section>`;
 }
-
-function relationRows() {
-  return typedRelations.map((relation) =>
-    '<article class="spine-relation"><div><strong>' + esc(relation.from) + '</strong><span>' + esc(relation.type) + '</span><strong>' + esc(relation.to) + '</strong></div><p>' + esc(relation.reason) + '</p></article>'
-  ).join("");
+export function renderSystemSpine(selectedId = "request", trace = {}) {
+  const selected = stageById.has(selectedId) ? selectedId : "request", stage = stageById.get(selected);
+  const mode = stage.lane === "runtime" ? "runtime" : stage.lane === "workload" ? "workload" : stage.lane === "execution" ? "execution" : "compile";
+  const family = mode === "runtime" ? runtimeStages : mode === "compile" ? compileStages : mode === "workload" ? workloadStages : [executionStage];
+  const tabs = [["runtime", "request", "请求运行路径"], ["compile", "compile-source", "编译与构建路径"], ["execution", "kernel-execution", "GPU 执行与性能证据"], ["workload", "workload-vla", "VLA / 世界模型"]];
+  const diagram = mode === "runtime" ? runtimeDiagram(selected) : mode === "compile" ? compileDiagram(selected) : "";
+  return `<div class="system-spine"><header class="spine-hero"><span class="eyebrow">系统主线</span><h1 id="spineOverviewHeading" tabindex="-1">跟着一个请求，看清推理怎样发生</h1><p>先看数据与控制依赖，再进入具体课程。编译路径在后端派发处与请求执行汇合；GPU 微架构保留独立的下钻入口。</p></header><nav class="spine-modes" aria-label="系统主线视角">${tabs.map(([m, id, title]) => `<a href="#spine/${id}" aria-current="${mode === m ? "page" : "false"}">${title}</a>`).join("")}</nav>${diagram}<nav class="spine-stage-nav" aria-label="选择主线环节">${family.map(s => station(s, selected)).join("")}</nav>${stageDetail(stage)}${mode === "runtime" ? renderRequestTrace(trace) + `<p id="spineTraceAnnouncement" class="spine-announcement" role="status" aria-atomic="true"></p>` : ""}${mode === "execution" ? `<div class="spine-evidence-table"><h2>把机制结论接到对应证据</h2><table><thead><tr><th>观察对象</th><th>能回答什么</th><th>仍需什么</th></tr></thead><tbody><tr><td>IR / 设备代码</td><td>实际选择了哪些操作与布局</td><td>具体版本、Shape、目标设备</td></tr><tr><td>资源报告 / NCU</td><td>寄存器、访存、指令的局部行为</td><td>改变单一因素的对照实验</td></tr><tr><td>时间线 / 请求指标</td><td>工作是否重叠、瓶颈是否影响完成</td><td>正确性、负载分布与重复测量</td></tr></tbody></table></div>` : ""}${mode === "workload" ? `<p class="spine-note">共同执行底座：输入准备 → 算子派发 → GPU 执行。预测 Token、生成动作和模拟未来各有自己的状态与终止条件；从本页课程进入相应机制。</p>` : ""}${extras()}</div>`;
 }
-
-function extensionCards() {
-  return extensions.map((extension) =>
-    '<article class="spine-extension"><h3>' + esc(extension.title) + '</h3><p>' + esc(extension.summary) + '</p><div>' + courseLinks(extension.courses) + '</div></article>'
-  ).join("");
-}
-
-export function renderSystemSpine(selectedId = "request") {
-  const selected = stageById.has(selectedId) ? selectedId : "request";
-  const detail = stageById.get(selected);
-  return '<div class="system-spine">' +
-    '<header class="spine-hero"><span class="eyebrow accent-text">系统完整主线 · 从请求到 GPU，再回到结果</span><h1>一次 AI 推理究竟是怎样发生的？</h1><p>先沿着一次普通自回归 LLM 请求走完，再把编译 / 构建路径叠上来。每个环节都能进入现有课程；这不是把所有模型和后端强行套进同一条实现流水线。</p><div class="spine-hero-actions"><button type="button" class="button primary" data-spine-stage="request">从请求入口开始</button><button type="button" class="button outline" data-spine-stage="compile-source">查看编译 / 构建路径</button></div></header>' +
-    '<section class="spine-section"><div class="spine-section-heading"><span class="eyebrow">01 / Request Runtime</span><h2>请求运行路径</h2><p>这是一次请求在运行期间经历的逻辑流程。Prefill 和 Decode 会重复执行模型前向；Scheduler 不是只在入口调用一次。</p></div><div class="spine-lane-label"><strong>请求与模型数据路径</strong><span>按阶段选择，查看数据、控制状态和对应课程</span></div><div class="spine-stations runtime">' + runtimeStages.map((item) => station(item, selected)).join("") + '</div><aside class="spine-control-band"><strong>贯穿全程的控制面</strong><span>Scheduler / Request State / KV Allocator / Async Completion</span><p>它们会在接纳、每轮 Batch 组装、KV 分配、取消和资源回收等时点反复参与；不是一个只出现一次的线性阶段。</p></aside></section>' +
-    (detail.lane === "execution" ? "" : stageDetail(detail)) +
-    '<section class="spine-section compile-section"><div class="spine-section-heading"><span class="eyebrow">02 / Compile & Build</span><h2>编译与构建路径</h2><p>这条路径通常在部署准备阶段或首次遇到某个 Shape / dtype / 目标条件时发生；缓存命中后，不会为每个 Token 重新走完整编译。</p></div><div class="spine-lane-label"><strong>从程序到可加载产物</strong><span>不同入口会走不同分支，不是所有代码都经过 Triton</span></div><div class="spine-stations compile">' + compileStages.map((item) => station(item, selected)).join("") + '</div><div class="spine-merge-point"><strong>汇合点：Backend Dispatch</strong><p>运行时按算子 Shape、dtype、设备和后端条件选择预编译库、手写 CUDA 或 Triton / 编译生成的 Kernel，再通过 Runtime / Driver 提交。直接 Triton 不要求先经 Dynamo；预编译库也可能跳过本站展示的部分编译步骤。</p><button type="button" class="button outline small" data-spine-stage="dispatch">查看两条路径如何汇合 →</button></div></section>' +
-    '<section class="spine-section execution-section"><div class="spine-section-heading"><span class="eyebrow">03 / GPU Execution</span><h2>Kernel 提交后的 GPU 执行</h2><p>GPU 执行是 Prefill / Decode 内部反复发生的子过程。这里向下连接 Kernel、Warp、指令、存储层次和硬件资源。</p></div>' + station(executionStage, selected) + (selected === executionStage.id ? stageDetail(executionStage) : "") + '</section>' +
-    '<section class="spine-section"><div class="spine-section-heading"><span class="eyebrow">04 / Cross-cutting Mechanisms</span><h2>跨章节的五条基础机制线</h2><p>这些不是额外的孤立课程，而是帮助你在不同专题之间追踪同一类对象和因果关系。</p></div><div class="spine-lenses">' + lensCards() + '</div></section>' +
-    '<section class="spine-section"><div class="spine-section-heading"><span class="eyebrow">05 / Typed Relations</span><h2>知识点之间到底是什么关系？</h2><p>不只写“相关”，而是标明谁产生谁、谁消费谁、谁控制谁，以及连接成立的具体原因。</p></div><div class="spine-relations">' + relationRows() + '</div></section>' +
-    '<section class="spine-section"><div class="spine-section-heading"><span class="eyebrow">06 / Other Workloads</span><h2>VLA 与世界模型怎样接入这条主线？</h2><p>它们的模型结构和输出形式不同，但仍然需要输入准备、模型执行、后端派发、GPU 执行和结果交付。</p></div><div class="spine-extensions">' + extensionCards() + '</div></section>' +
-    '<aside class="spine-note"><strong>阅读口径</strong><p>页面描述的是通用逻辑边界。真实框架可能融合、重排或异步执行多个环节；具体组件、采样顺序、KV 生命周期和编译路径应按模型版本与后端核对。教学路径不等于某个框架的逐函数源码审计，也不代表真实性能测量。</p></aside>' +
-    '</div>';
-}
-
 validateSystemSpine();

@@ -48,7 +48,7 @@ export const engineCourses = [
       "A取消后，行1即使完成也不能继续作为A的新输出。",
       "A的专有块要等在途使用结束才能回收，共享块还受其它引用保护。",
     ],
-    code: 'for row,result in enumerate(batch_results):\n rid=batch_request_ids[row]\n if requests[rid].state not in {"cancelled","failed"}:\n  deliver(rid,result)\n# 教学控制骨架；实际取消与资源回收仍需完成事件',
+    code: '# 教学事件骨架：终止标记不等于设备工作停止\nmark_terminal(request)\nwait_for_inflight_users(request)\nfor block in request.blocks:\n block.request_refs -= 1\n if block.request_refs == 0:\n  allocator.mark_reusable(block)\n# 可复用不等于立即擦除缓存内容；共享P3仍有B的引用',
     quiz: [
       "取消消息已到、GPU仍在读取A的缓冲区，能否立即复用？",
       [
@@ -90,14 +90,18 @@ export const engineCourses = [
         "权重和缓存同时装得下吗",
         "16MiB可用空间，权重8、工作区2、保留1，还能给KV多少？",
         "先用相同单位核算：剩5MiB。改成更大工作区，KV空间相应下降；内存预算是容量账本，不是运行时性能预测。",
-        { formula: true, quiz: true },
+        { formula: true, quiz: true, evidence: {
+          question: "16MiB中权重8、工作区从2增到4、保留1，KV上限怎样变化？",
+          options: ["仍是5MiB", "从5MiB降到3MiB", "从5MiB升到7MiB"], correct: 1,
+          explain: "各项同时占用同一容量：16−8−4−1=3MiB。增加工作区不会同时创造KV容量。",
+        } },
       ),
       page(
         "dtype",
         "转换在哪一步",
         "磁盘权重较小，为什么加载或执行仍可能需要更多空间？",
-        "反量化、Scale、格式重排和临时副本都可能增加峰值。要分别核对磁盘大小、驻留权重、加载峰值和运行峰值。",
-        { code: true },
+        "以4个整数码为例：码占4Byte，标量Scale占4Byte；若保留它们并展开一份FP32权重，又需16Byte，同一边界便有24Byte。消费时解码可避免这份全量副本，但仍有计算和局部存储成本。",
+        { code: true, evidence: { code: "codes=[2,-4,1,0]; scale=0.5\nweights=[q*scale for q in codes]\nassert weights==[1,-2,0.5,0]\n# 教学假设：int8码+FP32标量Scale+同时存活的FP32展开副本\npeak_weight_bytes=4+4+4*4\nassert peak_weight_bytes==24" } },
       ),
     ],
     formula: math(
@@ -201,21 +205,21 @@ export const engineCourses = [
       page(
         "capacity",
         "谁占用了物理块",
-        "容量3块，A/B各需要2块，为什么不能同时驻留？",
-        "图中槽位保留真实请求身份。A占2块后只余1，B需要2；计算预算未用完也不能凭空安排缺失块。",
+        "容量3块，A占2块、B占1块，B追加第5个位置为什么会失败？",
+        "每块容纳4位置。B已有4位置KV，追加时要第2块；A的2块仍被使用，总需求便从3变4。图中保持A/B身份，切到容量4对照为何不再需要抢占。",
       ),
       page(
         "evict",
         "抢占释放了什么",
         "回收B的KV以后，是否也应该删除已生成Token？",
-        "本例保留B的输入和已生成Token，释放其可回收KV。共享块只能减引用，不能覆盖其它请求仍在使用的内容。",
+        "抢占是暂停，B仍等待恢复；取消才会终止该请求。本例在没有未完成设备访问的安全边界保留B的离散序列、释放其可回收KV。共享块只能减引用，不能覆盖其它请求仍用的内容。",
         { code: true },
       ),
       page(
         "resume",
         "恢复的成本",
-        "B已有6个确定Token，KV被清空后能否当作只差1个位置？",
-        "需要重建必要历史KV，之后才能接续Decode。重计算式恢复与Swap恢复的数据路径不同，不能把两者都画成“立即继续”。",
+        "B已有4个已计算历史位置，KV被清空后能否当作只差1个位置？",
+        "本例先重建4位置的历史KV，再计算待追加的第5个位置。离散Token序列还在，但它并不是各层K/V张量。重计算与Swap恢复走不同路径，不能把两者都画成“立即继续”。",
         { quiz: true, formula: true },
       ),
     ],
@@ -223,11 +227,11 @@ export const engineCourses = [
       "<mrow><mi>capacity</mi><mo>≥</mo><mo>∑</mo><mi>livePhysicalBlocks</mi></mrow>",
     ),
     derive: [
-      "块大小4，6个已计算位置需要ceil(6/4)=2块。",
-      "释放这2个独占KV块后，Token序列仍可保留在请求状态。",
-      "若选择完整重计算，恢复要重算这6位置，而不是直接把它当已有6位置KV。",
+      "图的初态：块大小4，B已计算4位置，占1块；第5位置需要第2块。",
+      "释放B的独占KV块后，离散序列仍保留，但computed回到0。",
+      "图中A结束后，B先重算4位置恢复历史，再追加第5位置；真实前缀命中可能减少重算量。",
     ],
-    code: 'request={"tokens":[1,2,3,4,5,6],"computed":6,"blocks":[0,1]}\nrequest["blocks"]=[]\nrequest["computed"]=0 # 本例固定完全重计算\nassert len(request["tokens"])==6',
+    code: 'request={"tokens":[1,2,3,4],"computed":4,"blocks":[0]}\nrequest["blocks"]=[]\nrequest["computed"]=0 # 本例固定完全重计算\nassert len(request["tokens"])==4',
     quiz: [
       "B的历史KV全被回收，但Token还在，恢复时能否直接读取旧KV？",
       [
@@ -288,7 +292,7 @@ export const engineCourses = [
     derive: [
       "串行每轮CPU2+GPU4，共6个人工节拍。",
       "理想流水稳态由max(2,4)=4限制。",
-      "3轮还包括启动和排空，不能把3×4无条件当总时间；图明确显示边界。",
+      "3轮GPU从t=2开始，到6、10、14完成，总时长2+3×4=14拍。首次准备未被隐藏，不能报3×4=12。",
     ],
     code: "meta=prepare_independent_metadata()\nresult=wait_for_previous_output()\ninputs=bind_real_token_ids(meta,result)\nsubmit(inputs)\n# 职责骨架，不是某框架真实API",
     quiz: [

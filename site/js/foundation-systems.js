@@ -96,6 +96,7 @@ export const systemCourses = [
         "连续虚拟地址怎样映射",
         "虚拟页0/1/2能否对应不连续的物理页？",
         "图用显式页表把连续逻辑区间映射到物理页5/2/7。虚拟连续与物理连续是不同性质；设备访问路径由系统机制决定。",
+        { code: true, formula: true },
       ),
       page(
         "pin",
@@ -109,7 +110,7 @@ export const systemCourses = [
         "相同字节为何路径不同",
         "CPU线程与内存位于不同节点时，多了哪一段路径？",
         "图将本地内存、跨节点链路和GPU连接分开。只比较传输字节会遗漏CPU拓扑；实际收益需固定绑核、内存分配和设备位置测量。",
-        { code: true },
+        { evidence: { source: "https://docs.kernel.org/admin-guide/mm/numa_memory_policy.html", section: "Linux NUMA memory policy：内存分配节点与CPU节点的关系；本图不代表真实设备拓扑。" } },
       ),
     ],
     formula: math(
@@ -162,7 +163,11 @@ export const systemCourses = [
         "跨进程不能只传指针数字",
         "进程A给B发送一个GPU地址整数，B为何不能默认直接读？",
         "必须通过受支持的IPC、共享或通信机制建立可访问关系与生命周期。仅有地址数值不建立权限、资源身份或完成条件。",
-        { quiz: true, code: true },
+        { quiz: true, code: true, evidence: {
+          question: "进程B只收到A的GPU指针整数，是否已经能安全访问A的分配？",
+          options: ["能，地址数字相同就可访问", "不能，仍需受支持的共享/通信和生命周期协议", "只需转换成64位整数"], correct: 1,
+          explain: "整数没有建立资源映射、访问权限或完成依赖；共享必须通过受支持机制。",
+        } },
       ),
     ],
     formula: math(
@@ -220,7 +225,11 @@ export const systemCourses = [
         "DP在复制什么",
         "请求A/B分给两个完整模型副本时，是否仍需要每层归约激活？",
         "普通独立请求DP不因数据分配本身要求这种逐层合并；每卡仍需完整副本及本地KV。真实混合并行还可在每个副本内部使用TP。",
-        { quiz: true },
+        { quiz: true, evidence: {
+          question: "A/B分别交给两个完整模型副本，单靠这种DP分请求是否要求每层AllReduce？",
+          options: ["要求，所有多卡都要合并同一激活", "不要求；两条请求独立，副本内部若另用TP则另论", "不要求，因为DP省掉了模型权重"], correct: 1,
+          explain: "独立请求DP复制模型并分配请求，没有把同一输出切成各卡的部分和。",
+        } },
       ),
     ],
     formula: math(
@@ -283,7 +292,7 @@ export const systemCourses = [
         "慢段怎样限制节拍",
         "段1变为2拍时，段0为什么仍会等待或积压？",
         "稳态受最慢段约束。更多Microbatch可能摊薄启动空泡，却不能消除固有段不平衡和传输成本。",
-        { code: true },
+        { code: true, evidence: { code: "stage_end=[0,0]; duration=[1,2]; trace=[]\nfor b in range(3):\n first=stage_end[0]+duration[0]; stage_end[0]=first\n second=max(first,stage_end[1])+duration[1]; stage_end[1]=second\n trace.append((b,first,second))\nassert [r[2] for r in trace]==[3,5,7]\n# 慢段决定稳态，三批总共7个人工节拍" } },
       ),
     ],
     formula: math(
