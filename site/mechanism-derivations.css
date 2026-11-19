@@ -16,6 +16,10 @@
 .theory-cells>.t-a,.theory-legend .t-a,.theory-patches>.t-a{background:#d6edf7;color:#185571;border-color:#9bcde2}
 .theory-cells>.t-b,.theory-legend .t-b,.theory-patches>.t-b{background:#fce7cb;color:#81501c;border-color:#e7ba83}
 .theory-cells>.t-c,.theory-legend .t-c{background:#e4dcf7;color:#563e89;border-color:#c1b0e7}
+.theory-scheduler .theory-cells>span{color:var(--ink);border-color:var(--border)}
+.theory-scheduler .theory-cells>.t-a,.theory-scheduler .theory-legend .t-a{background:color-mix(in srgb,#78b6c9 25%,var(--surface))}
+.theory-scheduler .theory-cells>.t-b,.theory-scheduler .theory-legend .t-b{background:color-mix(in srgb,#dbad63 25%,var(--surface))}
+.theory-scheduler .theory-cells>.t-c,.theory-scheduler .theory-legend .t-c{background:color-mix(in srgb,#9b96ca 25%,var(--surface))}
 .theory-lanes{display:grid;grid-template-columns:minmax(0,1fr) 118px minmax(0,1fr);gap:12px;align-items:center}
 .theory-lane{display:flex;flex-direction:column;gap:9px}
 .theory-lane-title{font-weight:800;color:var(--primary);font-size:14px}

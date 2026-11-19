@@ -118,55 +118,7 @@ export function deltaChunkSolve(beta = 0.5, keys = "mixed") {
   );
   return { K, V, L, rhs, D, S };
 }
-export function scheduleTrace(budget = 8, capacity = 16) {
-  const requests = [
-    { id: "A", prompt: 0, computed: 6, blocks: 2 },
-    { id: "B", prompt: 6, computed: 0, blocks: 0 },
-    { id: "C", prompt: 4, computed: 0, blocks: 0 },
-  ];
-  const rounds = [];
-  for (let round = 0; round < 3; round++) {
-    let left = budget,
-      free = capacity - sum(requests.map((r) => r.blocks));
-    const chosen = [],
-      rejected = [];
-    for (const r of requests) {
-      const pending = r.prompt > r.computed ? r.prompt - r.computed : 1,
-        n = Math.min(pending, left);
-      if (!n) continue;
-      const extra = Math.max(0, Math.ceil((r.computed + n) / 4) - r.blocks);
-      if (extra > free) {
-        rejected.push({ id: r.id, n, extra, free });
-        continue;
-      }
-      chosen.push({
-        id: r.id,
-        n,
-        kind: r.prompt > r.computed ? "prefill" : "decode",
-        before: r.computed,
-        extra,
-      });
-      r.computed += n;
-      r.blocks += extra;
-      free -= extra;
-      left -= n;
-    }
-    rounds.push({
-      round: round + 1,
-      budget,
-      used: budget - left,
-      left,
-      chosen,
-      rejected,
-      free,
-      requests: requests.map((r) => ({
-        ...r,
-        pending: Math.max(0, r.prompt - r.computed),
-      })),
-    });
-  }
-  return rounds;
-}
+export { schedulerScenario, scheduleTrace } from "./scheduler-model.js";
 export function expertTrace(k = 2) {
   const routes = moeScores.map((scores, t) => {
     const ids = [0, 1, 2].sort((a, b) => scores[b] - scores[a]).slice(0, k);

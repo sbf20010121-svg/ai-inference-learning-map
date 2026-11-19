@@ -1,5 +1,6 @@
 /** V1.7：小屏优先、逐环节专用图。完整复杂机制图仍可在同页展开。 */
 import {flashStats,pedagogicalWarpCycles} from './mechanism-studio.js';
+import {schedulerScenario,scheduleTrace} from './scheduler-model.js';
 const e=(v='')=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const box=(title,detail='',focus=false)=>`<div class="fs-box ${focus?'active':''}"><strong>${e(title)}</strong>${detail?`<small>${e(detail)}</small>`:''}</div>`;
 const arrow=()=>'<span class="fs-arrow" aria-hidden="true">→</span>';
@@ -12,9 +13,17 @@ function pd(i){switch(i){
  case 3:return [line(box('历史 KV + 新 Query'),box('D 端 Attention','按步执行',true),box('新 Token + 新 KV')),'Decode 仍会运行模型；它使用历史 KV 并不断追加新的状态。'];
  default:return [`<div class="fs-compare">${box('混部 GPU','Prefill / Decode 竞争资源')}${box('分离 P + D','独立调参，但新增 KV 传输',true)}</div>`,'比较同样 GPU 总预算下的 TTFT / ITL / Goodput 与通信开销。'];
 }}
-function scheduler(i){if(i===1||i===2){const parts=i===1?['A',...Array(7).fill('B')]:['A',...Array(3).fill('B'),...Array(4).fill('C')];return [`<div class="fs-budget"><b>本轮预算 = 8 Tokens</b><div>${parts.map((x,j)=>`<span class="fs-token fs-${x.toLowerCase()}">${e(x)}</span>`).join('')}</div><small>A：Decode 1 个；B：长 Prompt；C：短 Prompt</small></div>`,i===1?'第 1 轮 A=1、B=7、C=0；B 的 Prefill 还没算完。':'第 2 轮 A=1、B=3、C=4；剩余预算允许 C 进入。本例假设 KV 资源足够。'];}
- if(i===0)return [line(box('Running A'),box('Waiting B / C'),box('Scheduler','读取请求状态',true)),'调度器不只看请求数量，还要看每条请求已计算多少 Token、剩余多少 Token。'];
- return [line(box('本轮分配','A/B/C 各算几个'),box('Model Runner','准备输入元数据',true),box('模型 Kernel','GPU 执行')),'Scheduler 决定算什么，Runner 决定怎样把本轮模型计算交给设备。'];
+function scheduler(i){
+ const [a,b,c]=schedulerScenario.requests,rounds=scheduleTrace();
+ const setup=`<p>主课程同一初态：A/B/C 是请求编号。A 已完成输入、已有 ${a.computed} 个位置的 KV；B/C 的输入分别还缺 ${b.prompt}/${c.prompt} 个位置。每轮预算重置为 ${schedulerScenario.defaultBudget}，按 A→B→C 检查，KV 充足，前一轮执行完成后再开始下一轮。</p>`;
+ if(i>=1&&i<=3){
+  const r=rounds[i-1],parts=r.chosen.flatMap(x=>Array(x.n).fill(x.id));
+  parts.push(...Array(r.left).fill(''));
+  return [setup+`<div class="fs-budget"><b>第 ${r.round} 轮：安排 ${r.used} / ${r.budget} 个位置</b><div>${parts.map(x=>`<span class="fs-token fs-${x?x.toLowerCase():'free'}" title="${x?'请求 '+x+' 的一个计算位置':'未用预算'}"${x?'':' style="color:var(--muted);background:var(--surface2)"'}>${e(x||'—')}</span>`).join('')}</div><small>${r.chosen.map(x=>`${x.id} ${x.kind==='decode'?'Decode':'Prefill'} ${x.n}`).join(' + ')}；未用 ${r.left}</small></div>`,`执行完成后，B/C 的输入还剩 ${r.requests[1].pending}/${r.requests[2].pending} 个位置。新采样的 Token 到下一轮才做前向；格子表示计算位置，不是输出数量或 GPU 时间。`];
+ }
+ if(i===0)return [setup+`<div class="fs-chunks">${box('请求 A','正在生成；待算 1 个位置',true)}${box('请求 B','新输入；待算 6 个位置')}${box('请求 C','新输入；待算 4 个位置')}</div>`,'轮前尚未分配。A 本轮要计算上次已采样的位置；B/C 则从各自输入的第一个位置开始。'];
+ const packed=rounds[2].chosen.flatMap(r=>Array.from({length:r.n},(_,j)=>`${r.id}@p${r.before+j}`));
+ return [setup+line(box('第 3 轮选中位置',packed.join('、')),box('Model Runner','保留请求身份，准备输入张量',true),box('模型 Kernel','计算并写回对应请求的状态')),'p 是各请求内从 0 开始的位置编号。Scheduler 选择位置，Runner 准备模型输入；一次调度可触发多个 GPU Kernel。'];
 }
 function compiler(i){const flows=[
  [line(box('Mul','写临时 t1'),box('Add','写临时 t2'),box('ReLU','输出 y')),'数学表达式可能对应多个独立 Kernel 和中间 Tensor。'],
@@ -26,4 +35,4 @@ function compiler(i){const flows=[
 function attention(i){const stats=flashStats(i);if(i===0)return [`<div class="fs-chunks">${box('Query','固定 1 行',true)}${box('K/V Tile ①','scores 1,2')}${box('K/V Tile ②','scores 3,0')}</div>`,'不用先把完整 S×S 分数矩阵写入 HBM。'];if(i===1)return [chips(['m = 2','l ≈ 1.368','a ≈ 2.368']),'第一块的 Softmax 统计量按每个 Query 行维护。'];if(i===2)return [chips(['新 m = 3','旧统计 × exp(−1)','累加新 Tile']),'当最大分数从 2 升到 3，旧分母与累积值都要重缩放，不能简单平均两块输出。'];return [line(box('m、l、a','已遍历全部 Tile'),box('a / l',`输出约 ${stats.second.out.toFixed(3)}`,true)),'输出与全局 Softmax 的数学结果对应；稠密注意力的点积计算量级仍在。'];}
 function warp(i){const focus=[0,1,4,6,7][i]||0;const cycles=pedagogicalWarpCycles.slice(0,8);return [`<div class="fs-cycles">${cycles.map(s=>`<div class="${s.c===focus?'active':''} ${s.kind==='idle'?'empty':''}"><small>c${s.c}</small><strong>${e(s.instr)}</strong></div>`).join('')}</div>`,i===0?'三个 Warp 都 Active，并不意味着每个周期都 Eligible。':i===1?'W0 等待加载的结果，W1/W2 仍可能占用可发射槽。':i===2?'其他 Warp 先发射，能隐藏部分等待时间。':i===3?'当所有 Warp 都因依赖不可发射时会出现空泡。':'即使 Eligible 很多，仍可能遇到发射/执行资源上限。'];}
 const scenes={'pd-disagg':pd,'vllm-scheduler':scheduler,'compiler-lowering':compiler,'attention-tiling':attention,'warp-issue':warp};
-export function focusScene(id,step=0){const fn=scenes[id];if(!fn)return '';const [visual,note]=fn(step);return `<figure class="focus-scene"><div class="focus-scene-content">${visual}</div><figcaption>${e(note)} <span>机制教学示意</span></figcaption></figure>`;}
+export function focusScene(id,step=0){const fn=scenes[id];if(!fn)return '';const [visual,note]=fn(step);return `<figure class="focus-scene"${id==='vllm-scheduler'?' data-scheduler-scene':''}><div class="focus-scene-content">${visual}</div><figcaption>${e(note)} <span>机制教学示意</span></figcaption></figure>`;}

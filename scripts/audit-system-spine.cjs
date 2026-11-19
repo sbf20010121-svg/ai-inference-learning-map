@@ -8,7 +8,7 @@ const fs = require("node:fs");
   const { systemSpineStages, spineStageForCourse } = await import("../site/js/system-spine.js");
   const base = process.env.ATLAS_URL || "http://127.0.0.1:5173/";
   const browser = await chromium.launch({ headless: true, executablePath: process.env.BROWSER_EXECUTABLE || undefined });
-  const errors = [], report = { coursesRoundTrip: 0, mobileCourseRoundTrip: 0, stages: 0, traceBranches: 0, widths: [1365, 390, 360], focus: [], errors };
+  const errors = [], report = { coursesRoundTrip: 0, mobileCourseRoundTrip: 0, stages: 0, traceBranches: 0, widths: [1365, 390, 360], focus: [], scheduler: [], schedulerLegacy: [], schedulerGallery: [], errors };
   fs.mkdirSync("test-results", { recursive: true });
   try {
     for (const width of report.widths) {
@@ -128,6 +128,129 @@ const fs = require("node:fs");
       }
     }
     await context.close();
+    // Check the teaching state, not merely whether a button changed a caption.
+    for (const width of [1365, 360]) {
+      const schedulerContext = await browser.newContext({ viewport: { width, height: 1000 } });
+      const schedulerPage = await schedulerContext.newPage();
+      schedulerPage.on("pageerror", e => errors.push(`scheduler/${width}: ${e.message}`));
+      const choose = async (key, value) => {
+        const button = schedulerPage.locator(`.mechanism-lab [data-mech-key="${key}"][data-mech-value="${value}"]`);
+        if (await button.getAttribute("aria-pressed") !== "true") await button.click();
+      };
+      const open = async (chapter) => {
+        await schedulerPage.goto(`${base}#depth/vllm-scheduler/L2/${chapter}`);
+        const expected = chaptersFor("vllm-scheduler").find(ch => ch.id === chapter);
+        await schedulerPage.waitForFunction(([id, figure]) => document.querySelector('[data-mech-chapter][aria-current="step"]')?.dataset.mechChapter === id && document.querySelector(".mechanism-lab")?.dataset.mechanism === figure, [chapter, expected.figure]);
+        await choose("budget", 8);
+        await choose("capacity", 16);
+        await choose("round", 0);
+        const view = schedulerPage.locator(`[data-scheduler-view="${expected.figure}"]`);
+        await view.waitFor({ state: "visible" });
+        const intro = schedulerPage.locator(".mechanism-lab .scheduler-scenario");
+        assert.ok(await intro.isVisible(), `${width}/${chapter}: initial request identities must be visible`);
+        const introText = await intro.innerText();
+        for (const identity of ["A", "B", "C"]) assert.ok(introText.includes(identity), `${width}/${chapter}: request ${identity} must be introduced`);
+        for (const initialCount of ["6", "4"]) assert.ok(introText.includes(initialCount), `${width}/${chapter}: the initial prompt counts must be stated`);
+        assert.ok(await intro.evaluate(el => !!(el.compareDocumentPosition(el.closest(".mechanism-lab").querySelector(".mech-figure")) & Node.DOCUMENT_POSITION_FOLLOWING)), `${width}/${chapter}: setup must come before the calculation figure`);
+        return view;
+      };
+      const summary = async (view, expected, label) => {
+        const result = await view.locator("[data-scheduler-summary]").evaluate(el => ({ used: +el.dataset.used, left: +el.dataset.left, free: +el.dataset.free }));
+        assert.deepEqual(result, expected, `${width}/${label}: rendered budget/KV result`);
+        assert.ok(await view.locator("[data-scheduler-summary]").isVisible(), `${width}/${label}: counters must be readable`);
+        report.scheduler.push({ width, case: label, ...result });
+      };
+      const states = async (view, phase) => view.locator(`[data-scheduler-request][data-phase="${phase}"]`).evaluateAll(rows => rows.map(el => ({ id: el.dataset.schedulerRequest, computed: +el.dataset.computed, promptPending: +el.dataset.promptPending, blocks: +el.dataset.blocks })));
+      const screenshot = async (label) => {
+        assert.equal(await schedulerPage.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, `${width}/scheduler/${label}: page overflow`);
+        await schedulerPage.waitForFunction(() => !document.querySelector("#toast") || getComputedStyle(document.querySelector("#toast")).opacity === "0");
+        await schedulerPage.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+        await schedulerPage.screenshot({ path: `test-results/v6-scheduler-${label}-${width}.png`, fullPage: true });
+      };
+      let view = await open("requests");
+      assert.deepEqual(await states(view, "before"), [{ id: "A", computed: 6, promptPending: 0, blocks: 2 }, { id: "B", computed: 0, promptPending: 6, blocks: 0 }, { id: "C", computed: 0, promptPending: 4, blocks: 0 }]);
+      assert.deepEqual(await states(view, "after"), [{ id: "A", computed: 7, promptPending: 0, blocks: 2 }, { id: "B", computed: 6, promptPending: 0, blocks: 2 }, { id: "C", computed: 1, promptPending: 3, blocks: 1 }]);
+      await summary(view, { used: 8, left: 0, free: 11 }, "initial-requests");
+      await screenshot("requests");
+
+      view = await open("budget");
+      const grants = async () => view.locator("[data-scheduler-decision]").evaluateAll(rows => rows.map(el => [el.dataset.schedulerDecision, +el.dataset.granted]));
+      assert.deepEqual(await grants(), [["A", 1], ["B", 6], ["C", 1]], "budget8 must expose each allocation");
+      await screenshot("budget");
+      await choose("budget", 4);
+      assert.deepEqual(await grants(), [["A", 1], ["B", 3], ["C", 0]], "budget4 must leave C unscheduled");
+      await summary(view, { used: 4, left: 0, free: 13 }, "budget4");
+
+      view = await open("kv");
+      await choose("capacity", 2);
+      assert.deepEqual(await grants(), [["A", 1], ["B", 0], ["C", 0]], "KV capacity can stop B/C while compute budget remains");
+      await summary(view, { used: 1, left: 7, free: 0 }, "kv2-first-round");
+      await screenshot("kv-limited");
+      await choose("round", 2);
+      assert.equal(await view.getAttribute("data-round"), "3");
+      await summary(view, { used: 0, left: 8, free: 0 }, "kv2-third-round");
+
+      view = await open("rounds");
+      const firstRoundState = await states(view, "before");
+      await choose("round", 1);
+      assert.equal(await view.getAttribute("data-round"), "2");
+      assert.notDeepEqual(await states(view, "before"), firstRoundState, "changing round must change its input state");
+      assert.deepEqual(await states(view, "before"), [{ id: "A", computed: 7, promptPending: 0, blocks: 2 }, { id: "B", computed: 6, promptPending: 0, blocks: 2 }, { id: "C", computed: 1, promptPending: 3, blocks: 1 }]);
+      assert.deepEqual(await states(view, "after"), [{ id: "A", computed: 8, promptPending: 0, blocks: 2 }, { id: "B", computed: 7, promptPending: 0, blocks: 2 }, { id: "C", computed: 4, promptPending: 0, blocks: 1 }]);
+      await summary(view, { used: 5, left: 3, free: 11 }, "second-round");
+      await screenshot("rounds");
+
+      view = await open("runner");
+      await summary(view, { used: 8, left: 0, free: 11 }, "packed-input");
+      const packed = await view.innerText();
+      for (const label of ["A@p6", "B@p0", "B@p5", "C@p0"]) assert.ok(packed.includes(label), `${width}: packed input must retain ${label}`);
+      await screenshot("runner");
+
+      // The old compact export is retained for compatibility but has no current
+      // navigation entry. Render it with the site's real CSS, and label the
+      // evidence as a component audit rather than a user-navigation test.
+      for (const [step, expected] of [[0, [0, 0, 0, 8]], [2, [1, 1, 3, 3]], [3, [1, 1, 1, 5]]]) {
+        await schedulerPage.evaluate(async (step) => {
+          const { mechanismFigure } = await import("./js/mechanism-studio.js");
+          document.querySelector("#focusPanel").innerHTML = '<h2 id="mechanismQuestion">兼容机制图组件验收 · 主课程同一示例</h2>' + mechanismFigure("vllm-scheduler", step, 0);
+        }, step);
+        const component = schedulerPage.locator("#focusPanel .m16-compact-figure");
+        assert.ok(await component.isVisible());
+        const setup = component.locator(".m16-figure-caption").first();
+        assert.match(await setup.innerText(), /A\/B\/C 是请求编号/);
+        assert.match(await setup.innerText(), /6\/4/);
+        assert.ok(await setup.evaluate(el => !!(el.compareDocumentPosition(el.closest(".m16-compact-figure").querySelector(".m16-round")) & Node.DOCUMENT_POSITION_FOLLOWING)), "legacy setup must precede its allocation grid");
+        const cells = [];
+        for (const name of ["a", "b", "c", "free"]) cells.push(await component.locator(`.m16-slot.m16-${name}`).count());
+        assert.deepEqual(cells, expected, `${width}/legacy step${step}: request allocation and unused slots`);
+        assert.equal(await component.locator(".m16-slot").count(), 8);
+        report.schedulerLegacy.push({ width, mode: "component", step, allocations: cells.slice(0, 3), unused: cells[3] });
+        await screenshot(`legacy-component-step${step}`);
+      }
+
+      // The gallery is an independently labelled C=9 scenario, reached through
+      // its real route and operated using its public controls.
+      await schedulerPage.goto(`${base}#network/studio/scheduler`);
+      await schedulerPage.waitForFunction(() => document.querySelector("#netStudioSelect")?.value === "scheduler" && !!document.querySelector(".mg-lab"));
+      const gallery = schedulerPage.locator(".mg-lab");
+      const gallerySetup = gallery.locator('[data-scheduler-scenario="independent-two-decode"]');
+      assert.ok(await gallerySetup.isVisible());
+      assert.match(await gallerySetup.innerText(), /独立对照示例/);
+      assert.match(await gallerySetup.innerText(), /9 位置/);
+      assert.match(await gallerySetup.innerText(), /A\/B 都已完成输入/);
+      assert.ok(await gallerySetup.evaluate(el => !!(el.compareDocumentPosition(el.closest(".mg-lab").querySelector(".mg-figure")) & Node.DOCUMENT_POSITION_FOLLOWING)), "independent setup must precede its figure");
+      for (const [step, expected, remaining] of [[0, [0, 0, 0, 8], 9], [1, [1, 1, 6, 0], 3]]) {
+        await gallery.locator(`[data-gallery-step="${step}"]`).click();
+        assert.equal(await gallery.locator(`[data-gallery-step="${step}"]`).getAttribute("aria-pressed"), "true");
+        const cells = [];
+        for (const owner of ["A", "B", "C", "free"]) cells.push(await gallery.locator(`.mg-budget-cell.mg-owner-${owner}`).count());
+        assert.deepEqual(cells, expected, `${width}/gallery step${step}: preserve independent request allocations`);
+        assert.match(await gallery.locator(".mg-scheduler-rows > div").nth(2).locator("small").innerText(), new RegExp(`输入剩余 ${remaining} 个位置`));
+        report.schedulerGallery.push({ width, mode: "navigation", step, allocations: cells.slice(0, 3), unused: cells[3], promptRemaining: remaining });
+        await screenshot(`gallery-step${step}`);
+      }
+      await schedulerContext.close();
+    }
     assert.deepEqual(errors, []);
     fs.writeFileSync("test-results/system-spine-audit.json", JSON.stringify(report, null, 2));
     console.log(JSON.stringify(report));

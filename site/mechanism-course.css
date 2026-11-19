@@ -689,6 +689,43 @@
   gap: 6px;
   font-size: 13px;
 }
+.scheduler-view { display: grid; gap: 16px; }
+.scheduler-scenario { margin: 0; font-size: 14px; line-height: 1.85; color: var(--ink); }
+.scheduler-summary { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: baseline; font-size: 14px; line-height: 1.7; }
+.scheduler-summary strong { font-size: 17px; color: var(--primary); }
+.scheduler-summary span { color: var(--muted); }
+.scheduler-states { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.scheduler-request { padding: 13px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); display: grid; gap: 13px; align-content: start; }
+.scheduler-request h3 { display: grid; gap: 8px; }
+.scheduler-id { display: inline-block; width: fit-content; padding: 5px 9px; border-radius: 4px; white-space: nowrap; font-size: 14px; }
+.scheduler-request p, .scheduler-decision p, .scheduler-budget p, .scheduler-kv-pool > p { margin: 0; font-size: 14px; line-height: 1.8; }
+.scheduler-request [data-phase] { display: grid; gap: 5px; font-size: 14px; }
+.scheduler-request [data-phase="after"] { padding-top: 10px; border-top: 1px solid var(--border); }
+.scheduler-positions { display: flex; flex-wrap: wrap; gap: 5px; }
+.scheduler-position { display: grid; place-items: center; width: 28px; height: 30px; font-size: 13px; border: 1px solid var(--border); border-radius: 3px; }
+.scheduler-position.is-selected { border: 2px solid var(--ink); font-weight: 700; }
+.scheduler-position.is-waiting { background: var(--surface); border: 1px dashed var(--muted); }
+.scheduler-grant strong { font-size: 20px; color: var(--primary); }
+.scheduler-legend { display: flex; gap: 8px 20px; flex-wrap: wrap; margin: 0; font-size: 13px; line-height: 1.6; color: var(--muted); }
+.scheduler-budget { display: grid; gap: 10px; }
+.scheduler-budget .mech-budget > span { flex-basis: 34px; min-height: 48px; gap: 2px; padding: 5px 0; }
+.scheduler-budget .mech-budget small { font-size: 12px; }
+.scheduler-decisions { display: grid; gap: 14px; }
+.scheduler-decision { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; align-items: start; border-bottom: 1px solid var(--border); padding-bottom: 13px; }
+.scheduler-decision > div { display: grid; gap: 6px; }
+.scheduler-decision-result { color: var(--primary); }
+.scheduler-kv-pool { display: grid; gap: 12px; }
+.scheduler-blocks { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.scheduler-blocks > div { display: grid; gap: 5px; padding: 9px; border: 1px solid var(--border); border-radius: 5px; font-size: 13px; }
+.scheduler-blocks > .is-new { border: 2px solid var(--ink); padding: 8px; }
+.scheduler-blocks > .is-free { color: var(--muted); border-style: dashed; }
+.scheduler-blocks > div > div { display: flex; gap: 7px; font-size: 15px; }
+.scheduler-blocks small { font-size: 12px; line-height: 1.5; }
+@media (max-width: 700px) {
+  .scheduler-states { grid-template-columns: 1fr; }
+  .scheduler-blocks { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .scheduler-decision { grid-template-columns: 1fr; gap: 8px; }
+}
 .mech-experts {
   display: flex;
   gap: 18px;

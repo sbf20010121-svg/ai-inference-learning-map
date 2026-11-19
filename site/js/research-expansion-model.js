@@ -1,25 +1,22 @@
 /** Research-first pure numerical models. Synthetic examples; not production framework simulations. */
-export const schedRequests=[
-  {id:'A',arrival:0,promptPending:0,kind:'Decode'},
-  {id:'B',arrival:0,promptPending:6,kind:'Prefill'},
-  {id:'C',arrival:0,promptPending:4,kind:'Prefill'}
-];
-export function schedulerRounds(budget=8, count=3){
-  if(!Number.isInteger(budget)||budget<3)throw Error('budget');
-  const remaining={B:6,C:4};const rounds=[];
-  for(let r=0;r<count;r++){
-    const chosen=[];let left=budget;
-    // Toy policy: A decode gets one; B, C are FCFS; completed prefill contributes one decode from next round.
-    chosen.push({id:'A',kind:'Decode',n:1});left--;
-    for(const id of ['B','C']){
-      if(!left)break;
-      const pending=remaining[id];
-      const n=Math.min(pending>0?pending:1,left);
-      if(n){chosen.push({id,kind:pending>0?'Prefill':'Decode',n});left-=n;if(pending>0)remaining[id]-=n;}
-    }
-    rounds.push({round:r+1,chosen,remaining:{...remaining},used:budget-left,free:left,budget});
-  }
-  return rounds;
+import { schedulerScenario, scheduleTrace } from "./scheduler-model.js";
+export const schedRequests = schedulerScenario.requests.map((request) => ({
+  id: request.id,
+  arrival: 0,
+  promptPending: Math.max(0, request.prompt - request.computed),
+  kind: request.prompt > request.computed ? "Prefill" : "Decode",
+}));
+export function schedulerRounds(budget = 8, count = 3) {
+  if (!Number.isInteger(budget) || budget < 3) throw Error("budget");
+  // This older budget-only view assumes sufficient KV; the chapter model exposes that constraint.
+  return scheduleTrace(budget, Infinity, count).map((round) => ({
+    round: round.round,
+    chosen: round.chosen.map(({ id, kind, n }) => ({ id, kind: kind === "prefill" ? "Prefill" : "Decode", n })),
+    remaining: Object.fromEntries(round.requests.filter((request) => request.id !== "A").map((request) => [request.id, request.promptPending])),
+    used: round.used,
+    free: round.left,
+    budget: round.budget,
+  }));
 }
 export const moeScores=[
   [0.2,1.4,0.8],

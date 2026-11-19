@@ -2,7 +2,13 @@ const math = (body) => `<math xmlns="http://www.w3.org/1998/Math/MathML" display
 /** Evidence is scoped to the selected question, never borrowed from an unrelated chapter. */
 export const engineSystemEvidence = {
   "vllm-scheduler/runner": {
-    terms: [["computed", "该请求已经完成模型计算的位置数"], ["p6", "请求内从0编号的第6号位置，不是Token ID=6"], ["Packed区间 [a,b)", "打包数组从a到b−1的行，长度为b−a"]],
+    terms: [["computed", "轮前已完成模型计算的位置数；computed=6表示p0…p5已算"], ["p6", "从0编号的第6号位置，即该请求第7个位置；不是Token ID=6"], ["Packed区间 [a,b)", "本轮打包数组从a到b−1的行，长度为b−a；不是请求内位置编号"]],
+  },
+  "vllm-scheduler/diagnose": {
+    question: "固定首轮：A已算6个位置、占2块；B/C各有6/4个输入待算。每块4位置、总容量2块、预算8，无抢占。为什么只安排A1，仍剩7个计算名额？",
+    options: ["剩余7个名额应该强行填给B/C", "A能用已有尾块；B/C拿不到新块，增加Token预算也解决不了", "B/C没得到预算，就说明它们已经结束"],
+    correct: 1,
+    explain: "A从6算到7位置仍只需ceil(7/4)=2块。B和C都要新块，但总共2块已归A；它们被暂缓且不扣计算预算。把容量改为16才能解除此例的缓存约束，单改Token预算无效。",
   },
   "serving-slo/load": {
     code: "# 相同服务3ms，对比不同客户端到达机制\nfinish=0\nfor i in range(4):\n arrival=finish if closed_loop else i\n start=max(arrival,finish)\n finish=start+3\n record(arrival,start,finish,finish-arrival)\n# 保留两种到达轨迹，不能只比四个响应数",

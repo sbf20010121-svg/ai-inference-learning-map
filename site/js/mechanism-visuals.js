@@ -1,3 +1,4 @@
+import { schedulerScenarioHTML, schedulerSummaryHTML, schedulerBudgetHTML, schedulerStatesHTML, schedulerDecisionsHTML, schedulerBlocksHTML, schedulerRoundExplanation } from "./scheduler-teaching.js";
 import { renderFoundationFigure } from "./foundation-figures.js";
 import { engineSystemFigureKinds, renderEngineSystemFigure } from "./engine-system-visuals.js";
 import { residualRmsFusion } from "./compiler-kernel-models.js";
@@ -579,52 +580,21 @@ function compiler(fig, s) {
   );
 }
 function scheduler(fig, s) {
-  const rr = scheduleTrace(s.budget, s.capacity),
-    r = rr[s.round];
-  let body = "";
-  if (fig === "scheduler-requests" || fig === "scheduler-rounds")
-    body = rr
-      .map(
-        (x) =>
-          `<div class="mech-budget-line"><strong>第${x.round}轮</strong><div class="mech-budget">${x.chosen.flatMap((t) => Array.from({ length: t.n }, () => `<span class="request-${t.id}">${t.id}</span>`)).join("")}${Array.from({ length: x.left }, () => '<span class="unused">空</span>').join("")}</div><small>B/C待输入 ${x.requests[1].pending}/${x.requests[2].pending}</small></div>`,
-      )
-      .join("");
-  else
-    body = `<div class="mech-budget">${r.chosen.flatMap((t) => Array.from({ length: t.n }, () => `<span class="request-${t.id}">${t.id}</span>`)).join("")}${Array.from({ length: r.left }, () => '<span class="unused">空</span>').join("")}</div><div class="mech-request-state">${r.requests.map((t) => `<div class="request-${t.id}"><strong>${t.id}</strong><span>computed=${t.computed}</span><span>KV块=${t.blocks}</span><span>输入还缺=${t.pending}</span></div>`).join("")}</div>${r.rejected.length ? `<p class="mech-result">${r.rejected.map((t) => `${t.id}申请新增${t.extra}块，空闲仅${t.free}块，暂缓`).join("；")}</p>` : '<p class="mech-result">本轮所有被选中请求的KV申请都满足。</p>'}`;
-  return (
-    control(
-      "Token预算",
-      "budget",
-      [
-        [4, "4位置"],
-        [8, "8位置"],
-      ],
-      s,
-    ) +
-    control(
-      "KV块总容量",
-      "capacity",
-      [
-        [16, "16块"],
-        [2, "2块：资源紧张"],
-      ],
-      s,
-    ) +
-    control(
-      "观察轮次",
-      "round",
-      [
-        [0, "第1轮"],
-        [1, "第2轮"],
-        [2, "第3轮"],
-      ],
-      s,
-    ) +
-    figure(
-      body,
-      `本轮使用${r.used}/${r.budget}计算位置，剩余${r.left}；空闲KV块${r.free}。块大小4为教学假设，暂缓不模拟真实抢占。`,
-    )
-  );
+  const r = scheduleTrace(s.budget, s.capacity)[s.round];
+  const states = fig === "scheduler-requests" || fig === "scheduler-rounds";
+  const kv = fig === "scheduler-kv";
+  const controls = control("每轮计算预算", "budget", [[4, "4位置"], [8, "8位置"]], s) +
+    control("KV块总容量", "capacity", [[16, "16块"], [2, "2块：资源紧张"]], s) +
+    control("观察轮次", "round", [[0, "第1轮"], [1, "第2轮"], [2, "第3轮"]], s);
+  const body = schedulerSummaryHTML(r) +
+    (states ? schedulerStatesHTML(r) : "") +
+    schedulerBudgetHTML(r) +
+    (!states ? schedulerDecisionsHTML(r, kv) : "") +
+    (kv ? schedulerBlocksHTML(r) : "") +
+    `<p class="mech-result">${esc(schedulerRoundExplanation(r))}</p>`;
+  return `<div class="scheduler-view" data-scheduler-view="${fig}" data-round="${r.round}">${schedulerScenarioHTML()}${controls}${figure(body,
+    "这是同步教学演算：一轮执行完成后才进入下一轮；A起点已有2块KV，每块4位置。暂不模拟新到达、停止、抢占、共享前缀或推测解码。计算位置数不等于本轮输出Token数。",
+  )}</div>`;
 }
 function moe(fig, s) {
   const d = expertTrace(s.k),

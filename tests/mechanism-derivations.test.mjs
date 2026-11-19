@@ -52,6 +52,22 @@ test('FlashAttention cumulative statistics and example are mathematically consis
  assert.match(worked,/指数重缩放/);
 });
 
+test('Scheduler 推导与主课程共用三条请求，并区分请求 B 和预算符号',()=>{
+ const html=renderInContext('vllm-scheduler');
+ assert.ok(html.indexOf('A/B/C 是请求编号')<html.indexOf('<figure'));
+ assert.match(html,/分别有 6\/4 个位置待算/);
+ const rounds=[...html.matchAll(/data-scheduler-round="(\d)"([\s\S]*?)(?=<\/div>)/g)];
+ assert.equal(rounds.length,3);
+ const expected=[[1,6,1],[1,1,3],[1,1,1]];
+ for(let i=0;i<rounds.length;i++){
+  assert.deepEqual(['a','b','c'].map(id=>[...rounds[i][2].matchAll(new RegExp(`class="t-${id}"`,'g'))].length),expected[i]);
+ }
+ const d=getDerivation('vllm-scheduler');
+ assert.equal(d.copy,'Σ_r n_r ≤ T_budget');
+ assert.match(renderWorkedDerivation('vllm-scheduler'),/与请求编号 B 无关/);
+ assert.ok(d.worked.some(x=>x.includes('1+1+3=5')&&x.includes('未用 3')));
+});
+
 test('native MathML stylesheet is bundled and no external runtime is required',()=>{
  const html=readFileSync(new URL('../site/index.html',import.meta.url),'utf8');
  const css=readFileSync(new URL('../site/mechanism-derivations.css',import.meta.url),'utf8');

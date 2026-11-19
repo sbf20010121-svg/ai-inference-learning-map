@@ -97,19 +97,20 @@ export const courseNotes = {
   ),
   "vllm-scheduler": d(
     "Scheduler 把请求尚需计算的位置分配进一次设备执行，输出每请求 Token 数、缓存和请求元数据；计算预算与 KV 容量是两个约束。",
-    "B|每轮教学计算预算，单位Token;n_i|请求i本轮安排的位置数;computed|已计算位置数;prefill|处理输入位置;decode|继续生成新位置;preemption|资源不足时抢占并调整请求状态",
-    "先计算每请求尚缺的位置，再按策略限制本轮数量，最后申请对应 KV 槽。申请失败可能触发抢占，预算也可能回退。只有资源和预算同时满足才可形成执行输出。当前源码还区分输入预算、推测草稿槽和多模态预算；旧版单变量模型不能当作生产循环。",
+    "T_budget|每轮计算位置总预算；每轮重置，不是请求B或字节数;n_i|请求i本轮安排的位置数;computed|已经完成模型计算的位置数，不含刚采样但尚未送回模型的Token;Prefill|计算尚未处理的输入位置;Decode|把上轮确定的Token送进模型，计算其KV并产生下一Token的分数;Prompt剩余|尚未处理的输入位置数；为0后仍可能需要Decode1",
+    "教学输入是三条请求：A已计算6个位置，下一位置等待Decode；B/C分别有6/4个输入位置，均未计算。每轮按A→B→C检查待算位置，受剩余计算预算和可分配KV块共同约束，再把选中位置交给Runner。本例等这一轮计算完成后更新状态；不模拟EOS停止、抢占、异步调度或推测解码。",
     M(
-      "<mrow><munderover><mo>∑</mo><mi>i</mi><mi>requests</mi></munderover><msub><mi>n</mi><mi>i</mi></msub><mo>≤</mo><mi>B</mi><mo>∧</mo><mi>KV_allocatable</mi></mrow>",
+      "<mrow><munderover><mo>∑</mo><mi>i</mi><mi>requests</mi></munderover><msub><mi>n</mi><mi>i</mi></msub><mo>≤</mo><msub><mi>T</mi><mtext>budget</mtext></msub><mo>∧</mo><mi>KV_allocatable</mi></mrow>",
     ),
     [
-      "A需要1个Decode位置，B/C尚有6/4个输入位置；B=8。",
-      "教学FCFS顺序安排 A1、B6、C1，共8；C还缺3。",
-      "预算改为4：首轮 A1、B3；下一轮 A1、B3；第三轮 A1、B1、C2。B在输入完成后的下一轮转Decode。",
+      "默认计算预算T_budget=8，KV总容量16块，每块4位置；A先占2块，B/C未占块。第一轮待算量为A1、B6、C4。",
+      "按A→B→C扣减：8−1=7，7−6=1，最后1个名额给C。分配1/6/1，共8；本轮计算完成后，B输入处理完，C还剩4−1=3。",
+      "下一轮预算重置为8。B输入已处理完，改算刚采样的1个Token；于是A1+B1+C3=5，空余3。第三轮三条请求各算1，空余5。这里没有新的输入可再填满名额。",
+      "仅把预算改为4、保持KV充足：首两轮都是A1+B3，C尚未开始；第三轮B转Decode，分配A1+B1+C2。两组轨迹分别计算，不把默认8的轮后状态带进预算4。",
     ],
     VLLM,
-    "schedule：num_scheduled_tokens、allocate_slots、token_budget 与 input_budget；latest 为移动文档，非固定提交审计",
-    "remaining = target_positions - computed_positions\nn = min(remaining, token_budget)\nblocks = try_allocate_kv(request, n)\nif blocks is None:\n    reconsider_or_preempt()\nelse:\n    scheduled[request.id] = n\n    token_budget -= n",
+    "vLLM Scheduler文档用于核对每请求调度量、缓存分配和交给执行侧的元数据。latest会变化；本页固定顺序及三轮数值为教学构造，不是某个生产版本的完整循环。",
+    "# 同步教学轮次；每块4位置，A→B→C，无停止或抢占\nfor round in range(3):\n    budget_left = T_budget  # 每轮重置\n    free_blocks = capacity - sum(r.blocks for r in requests)\n    selected = []\n    for request in requests:\n        prompt_left = max(0, request.prompt - request.computed)\n        pending = prompt_left if prompt_left > 0 else 1\n        n = min(pending, budget_left)\n        if n == 0: continue\n        extra = max(0, ceil((request.computed+n)/4) - request.blocks)\n        if extra > free_blocks: continue  # 暂缓，不扣预算\n        request.blocks += extra  # 教学分配记录\n        free_blocks -= extra\n        selected.append((request, n))\n        budget_left -= n\n    outputs = execute_and_wait(selected)  # 提交不等于计算完成\n    for request, n in selected:\n        request.computed += n\n        if request.computed >= request.prompt:\n            request.next_token = sample(outputs[request.id])\n            # 刚采样的Token留待下一轮计算，不计入computed",
     "首轮还剩3个Token预算，但新请求需要的KV块不能分配。哪项才是可执行决定？",
     [
       "仍把3个位置发给GPU，稍后再找KV",
@@ -119,7 +120,7 @@ export const courseNotes = {
     1,
     "Token Budget 限制计算量，KV 管理限制持久状态。前者剩余不证明后者可分配。",
     "固定请求轨迹，记录每轮 scheduled tokens、KV分配、抢占与computed变化；不要只比较最终吞吐。",
-    "模型不含实际抢占分支、异步调度、草稿Token与多模态；这里只核对预算守恒。",
+    "固定三条请求、A→B→C顺序、每块4位置，默认容量16块；每轮等执行完成再进入下一轮，无EOS停止、释放、抢占、异步、草稿或多模态。本图核对计算预算与KV容量，不代表真实vLLM策略或吞吐。",
   ),
   "moe-route": d(
     "MoE 用 Router 选择部分专家前馈网络，按专家重排 Token 激活，必要时跨卡派发，计算后恢复 Token 顺序并加权合并。",

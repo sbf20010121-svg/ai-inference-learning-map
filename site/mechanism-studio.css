@@ -51,6 +51,10 @@
 .m16-slot{min-width:0;border-radius:5px;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;height:46px;font-size:14px;font-weight:780}
 .m16-slot small{font-size:9px;opacity:.84;font-weight:450}.m16-a{color:#9871ca}.m16-b{color:#258d92}.m16-c{color:#bd8749}
 .m16-slot.m16-a{background:#8c69b8}.m16-slot.m16-b{background:#25898c}.m16-slot.m16-c{background:#b58246}
+.m16-scheduler .m16-slot{color:var(--ink)}
+.m16-scheduler .m16-slot.m16-a{background:color-mix(in srgb,#78b6c9 25%,var(--surface))}
+.m16-scheduler .m16-slot.m16-b{background:color-mix(in srgb,#dbad63 25%,var(--surface))}
+.m16-scheduler .m16-slot.m16-c{background:color-mix(in srgb,#9b96ca 25%,var(--surface))}
 .m16-legends{display:flex;gap:17px;flex-wrap:wrap;margin-top:11px;font-size:11px;font-weight:700}
 .m16-table-wrap{overflow-x:auto}.m16-table{border-collapse:collapse;width:100%;min-width:510px;font-size:12px}
 .m16-table th,.m16-table td{border-bottom:1px solid var(--border);padding:9px 11px;text-align:left}.m16-table th{color:var(--muted);font-weight:700;background:var(--surface3)}

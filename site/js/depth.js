@@ -730,7 +730,7 @@ function routeMini() {
 
 const spotlight = [
   ["pd-disagg", "PD 分离", "看清请求路由、KV 交接与 D 端续接"],
-  ["vllm-scheduler", "vLLM 调度", "重放两轮 Token Budget 和队列状态"],
+  ["vllm-scheduler", "vLLM 调度", "重放三轮计算位置分配与请求状态"],
   ["compiler-lowering", "编译执行", "沿 FX / Fusion / PTX / Runtime 路径追踪"],
   ["attention-tiling", "FlashAttention", "跟随两个 Tile 更新 Softmax 的 m/l/a"],
   ["warp-issue", "Warp 发射", "观察 Load 依赖、Eligible 和发射空泡"],

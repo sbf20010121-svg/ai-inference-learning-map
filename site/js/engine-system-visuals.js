@@ -1,7 +1,8 @@
 /** Chapter-specific execution views; all numbers are declared teaching inputs. */
 import { streamingMetrics, quantizedExecution, arrivalModes } from "./engine-system-models.js";
 import { residency } from "./foundation-numerics.js";
-import { scheduleTrace } from "./mechanism-models.js";
+import { scheduleTrace } from "./scheduler-model.js";
+import { schedulerScenarioHTML, schedulerSummaryHTML } from "./scheduler-teaching.js";
 const e = (value = "") => String(value).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
 const table = (headers, rows) => `<div class="mech-scroll"><table class="ff-table"><thead><tr>${headers.map((v) => `<th>${e(v)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((v) => `<td>${e(v)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
 // Both layouts use the same fields and rows; mobile keeps each object's full record visible.
@@ -27,15 +28,15 @@ export function renderEngineSystemFigure(id, s) {
       offsets.push(slots.length);
       return [request.id, request.kind, `${request.before}…${request.before + request.n - 1}`, `[${start}, ${slots.length})`];
     });
-    return control("本轮计算预算", "budget", [[4,"4位置"],[8,"8位置"]],s) +
+    return `<div class="scheduler-view" data-scheduler-view="scheduler-packed-input" data-round="${r.round}">${schedulerScenarioHTML()}` + control("本轮计算预算", "budget", [[4,"4位置"],[8,"8位置"]],s) +
       control("轮次", "round", [[0,"1"],[1,"2"],[2,"3"]],s) +
       control("KV容量", "capacity", [[16,"16块"],[2,"2块"]],s) + figure(
-        array(slots.length ? slots : ["本轮没有可提交位置"], "Runner要准备的请求内位置；不是实际词ID") +
+        schedulerSummaryHTML(r) + array(slots.length ? slots : ["本轮没有可提交位置"], "Runner要准备的请求内位置；不是实际词ID") +
           engineSystemRecordTable(["请求", "位置类型", "请求内位置", "Packed半开区间"], rows) +
           array(offsets, "按本轮所选请求生成的累计边界") +
           metrics([["所选位置总数", slots.length],["控制侧提供", "请求ID、待算数量、位置与可用KV映射"],["执行侧继续准备", "真实Token ID、position、缓存表和后端元数据"]]),
         "位置标签A@p6只说明请求A的第6号位置。Scheduler决定算谁；Runner依据同一身份组装设备张量。此处没有冒充任一vLLM版本完整元数据或所有Attention后端格式。",
-      );
+      ) + "</div>";
   }
   if (id === "shared-consumers") {
     const explicit = !!s.scenario;

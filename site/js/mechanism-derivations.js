@@ -4,6 +4,8 @@
  * invariant, a worked numeric case and explicit applicability limits.
  * All visual and numerical examples are pedagogical, not hardware measurements.
  */
+import { schedulerScenario, scheduleTrace } from './scheduler-model.js';
+
 const E=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const mi=s=>`<mi>${E(s)}</mi>`, mn=n=>`<mn>${n}</mn>`, mo=s=>`<mo>${E(s)}</mo>`, txt=s=>`<mtext>${E(s)}</mtext>`;
 const sub=(a,b)=>`<msub>${mi(a)}${mi(b)}</msub>`;
@@ -18,7 +20,17 @@ const note=s=>`<p class="theory-figure-note">${E(s)}</p>`;
 const labelRow=(label,arr)=>`<div class="theory-labeled-row"><b>${E(label)}</b>${cells(arr)}</div>`;
 
 function diagPD(){return `<figure class="theory-figure" aria-label="Prefill 和 Decode 的不同实例与历史 KV 交接"><div class="theory-lanes"><div class="theory-lane"><div class="theory-lane-title">P：Prefill 实例</div>${block('输入 4 个 Token',cells(['t₀','t₁','t₂','t₃'].map(t=>({t,k:'t-a'}))))}${block('执行全部模型层','<p>为历史位置计算 K 与 V</p>', 'theory-processing')}${block('生成历史 KV',cells(['K₀/V₀','K₁/V₁','K₂/V₂','K₃/V₃'].map(t=>({t,k:'t-a'}))))}</div><div class="theory-transfer"><span>交接历史 KV 数据</span><b>→</b><small>还要协调块映射、就绪状态</small></div><div class="theory-lane"><div class="theory-lane-title">D：Decode 实例</div>${block('接收历史 KV',cells(['K₀/V₀','K₁/V₁','K₂/V₂','K₃/V₃'].map(t=>({t,k:'t-b'}))))}${block('新的 Query + 历史 KV','<p>逐步运行模型并追加本轮 K/V</p>', 'theory-processing')}${block('输出下一个 Token',cells([{t:'t₄',k:'t-b'}]))}</div></div>${note('这是“先 Prefill 再交接”的简化情形。P/D 两端分别承担推理阶段，不表示把 Transformer 的前后层拆开。')}</figure>`;}
-function schedulerDiagram(){const cell=(x,k)=>({t:x,k});const first=[cell('A','t-a'),cell('B','t-b'),cell('B','t-b'),cell('B','t-b'),cell('B','t-b'),cell('B','t-b'),cell('B','t-b'),cell('B','t-b')];const second=[cell('A','t-a'),cell('B','t-b'),cell('B','t-b'),cell('B','t-b'),cell('C','t-c'),cell('C','t-c'),cell('C','t-c'),cell('C','t-c')];return `<figure class="theory-figure" aria-label="两轮 Token Budget 分配示例"><div class="theory-schedule"><div><strong>轮次 1 · 8 个计算 Token 槽</strong>${cells(first,'budget')}${note('A：Decode 1；B：长输入 Prefill 7；C：还在等待')}</div><div><strong>轮次 2 · 8 个计算 Token 槽</strong>${cells(second,'budget')}${note('A：Decode 1；B：剩余 Prefill 3；C：新 Prefill 4')}</div></div><div class="theory-legend"><span><i class="t-a"></i>A 已在生成</span><span><i class="t-b"></i>B 长输入</span><span><i class="t-c"></i>C 新输入</span></div>${note('教学设定：无缓存不足、抢占、特殊优先级或其他预算约束；这是 Token 分配示例，不代表任何版本的全部调度细节。')}</figure>`;}
+function schedulerDiagram(){
+ const [a,b,c]=schedulerScenario.requests,rounds=scheduleTrace();
+ const setup=note(`与主课程相同的三请求示例。A/B/C 是请求编号：A 已完成输入、已有 ${a.computed} 个位置的 KV，本轮续算 1 个位置；B/C 的新输入分别有 ${b.prompt}/${c.prompt} 个位置待算。每轮预算重置为 ${schedulerScenario.defaultBudget}，按 A→B→C 检查；KV 充足，每轮同步执行完再进入下一轮。`);
+ const rows=rounds.map(r=>{
+  const slots=r.chosen.flatMap(x=>Array.from({length:x.n},()=>({t:x.id,k:`t-${x.id.toLowerCase()}`,title:`请求 ${x.id} 的一个待算位置`})));
+  slots.push(...Array.from({length:r.left},()=>({t:'—',title:'未使用的预算'})));
+  const changes=r.chosen.map(x=>`${x.id} ${x.kind==='decode'?'Decode':'Prefill'} ${x.n}`).join(' + ');
+  return `<div data-scheduler-round="${r.round}"><strong>第 ${r.round} 轮 · 使用 ${r.used} / ${r.budget}</strong>${cells(slots,'budget')}${note(`${changes} = ${r.used}；未用 ${r.left}。执行完成后，B/C 的输入还剩 ${r.requests[1].pending}/${r.requests[2].pending} 个位置。`)}</div>`;
+ }).join('');
+ return setup+`<figure class="theory-figure theory-scheduler" aria-label="三轮计算位置分配，与主课程使用同一组请求"><div class="theory-schedule">${rows}</div><div class="theory-legend"><span><i class="t-a"></i>请求 A</span><span><i class="t-b"></i>请求 B</span><span><i class="t-c"></i>请求 C</span><span>— 未用预算</span></div>${note('一格是本轮一个计算位置，不是一个输出 Token 或 GPU 时间槽。B 在第一轮末、C 在第二轮末完成输入并采样首个输出；新采样的位置到下一轮才做前向。未模拟结束、抢占、新请求到达或推测解码。')}</figure>`;
+}
 function diagKV(){return `<figure class="theory-figure" aria-label="两条请求的逻辑 KV 块共享同一个物理块"><div class="theory-kv-grid"><div><strong>请求 A 的逻辑块</strong>${cells([{t:'A[0]',k:'t-a'},{t:'A[1]',k:'t-b'}])}<small>Block Table：A[0]→P3，A[1]→P7</small></div><div><strong>请求 B 的逻辑块</strong>${cells([{t:'B[0]',k:'t-a'},{t:'B[1]',k:'t-c'}])}<small>共享前缀：B[0]→P3，B[1]→P8</small></div><div class="theory-wide"><strong>GPU 物理 KV 块</strong>${cells([{t:'P3 · 引用 2',k:'t-a'},{t:'P7 · 引用 1',k:'t-b'},{t:'P8 · 引用 1',k:'t-c'}])}</div></div>${note('两条请求引用同一前缀的 P3；释放 A 时，P3 因 B 仍引用而不能释放。此图表示 KV 块，不是把文本 Token 字符直接存入显存。')}</figure>`;}
 function diagPrefillDecode(){
  const rows=Array.from({length:4},(_,i)=>Array.from({length:4},(_,j)=>`<span class="${j<=i?'can-see':'masked'}" title="Query 位置 ${i}，Key 位置 ${j}">${j<=i?'●':'×'}</span>`).join('')).join('');
@@ -46,11 +58,11 @@ const lessons={
  },
  'vllm-scheduler':{
   premise:'Scheduler 本轮最重要的输出不是一个请求名单，而是“每条请求本轮要处理多少 Token”。',
-  why:'当计算预算只有 8 个 Token 时，正在 Decode 的请求和还没处理完输入的请求必须共享预算。长 Prefill 可以分轮继续，下一轮再从已计算的位置往后处理。',
-  formula:math(`${msum()}${mo('≤')}${mi('B')}`,'本轮所有请求分配的 Token 数之和不超过预算 B'),
-  copy:'Σ_r n_r ≤ B',
-  vars:[['nᵣ','请求 r 本轮被安排处理的 Token 数','Token'],['B','本轮计算 Token Budget','Token'],['r','参与本轮调度的一条请求编号','请求']],
-  worked:['设本轮预算 B=8。第 1 轮 A 的 Decode 得 1，B 的长 Prefill 得 7，C 得 0。','下一轮 A 再得 1，B 还剩 3 个输入 Token，C 可获得剩余 4 个预算。','真正的 vLLM 还要考虑 KV 块、请求状态、优先级、推测解码等；这不是完整调度器模拟。'],
+  why:'每轮的计算位置上限为 8，正在生成的请求和输入尚未算完的请求共享这个上限。分配量不能超过当前待算量：输入未完就接着算输入，输入已完则续算上轮采样出的一个位置。尚未采样的未来位置不能拿剩余预算提前计算。',
+  formula:math(`${msum()}${mo('≤')}${sub('T','budget')}`,'本轮所有请求分配的计算位置数之和不超过预算 T budget'),
+  copy:'Σ_r n_r ≤ T_budget',
+  vars:[['nᵣ','请求 r 本轮被安排计算的位置数','Token 位置'],['T_budget','每轮重置的计算位置上限；与请求编号 B 无关','Token 位置'],['r','请求编号；本例依次检查 A、B、C','请求']],
+  worked:['主课程同一初态：A 已有 6 个位置的 KV，需续算 1；B/C 的输入分别还缺 6/4 个。每轮 T_budget=8，按 A→B→C 检查，KV 充足。','第 1 轮：A 得 min(1,8)=1，余 7；B 得 min(6,7)=6，余 1；C 得 min(4,1)=1。合计 8，C 的输入剩 3；B 完成输入后采样首个输出。','第 2 轮预算重新为 8：A/B 各续算 1，C 完成剩余 3，合计 1+1+3=5，未用 3。A/B 的再下一位置尚未采样，不能用这些预算提前计算。','第 3 轮：C 也已经完成输入，三条请求各续算 1，合计 3，未用 5。这里的 3 是计算位置数，不是模型的并行线程数或 GPU 实测利用率。'],
   limit:'固定优先顺序的预算教学模型；不同版本的调度实现和约束应以源码为准。',
   source:'https://docs.vllm.ai/en/latest/api/vllm/v1/core/sched/interface/'
  },
