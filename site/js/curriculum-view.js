@@ -29,7 +29,7 @@ export function courseLabel(c) {
 export function courseOrientation(t) {
   const unit = unitFor(t.id),
     module = depthModules.find((m) => m.id === t.module);
-  return `<div class="course-orientation"><button type="button" data-course-home="${t.module}">课程体系</button><span> / ${e(module.name)} / ${e(unit.title)}</span><small>本单元第${unit.courses.indexOf(t.id) + 1}/${unit.courses.length}门课 · ${e(roles[t.id] ? "导论" : "独立机制课程")}</small></div>`;
+  return `<div class="course-orientation"><button type="button" data-course-home="${t.module}">课程体系</button><span> / ${e(module.name)} / ${e(unit.title)}</span><small>本单元第${unit.courses.indexOf(t.id) + 1}/${unit.courses.length}门课 · ${e(roles[t.id] ? "导论" : "独立机制课程")}</small><button type="button" data-spine-stage="${spineStageForCourse(t.id)}">在系统主线中定位 ↗</button></div>`;
 }
 export function unitContinuation(t) {
   const u = unitFor(t.id),
