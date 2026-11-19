@@ -28,7 +28,8 @@ jobs:
   browser-audit:
     name: Audit desktop, mobile and learning records
     needs: test
-    runs-on: ubuntu-latest
+    # Pin the OS alongside Playwright so ubuntu-latest upgrades cannot break the browser.
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     concurrency:
       group: curriculum-browser-${{ github.event_name }}-${{ github.ref }}
