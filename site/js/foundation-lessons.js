@@ -90,8 +90,8 @@ export const compilerCourses = [
       page(
         "address",
         "从坐标找到元素",
-        "逻辑坐标(1,2)为什么对应第5个元素？",
-        "对2×3行主序张量，Stride=[3,1]。地址偏移是1×3+2×1=5；单位是元素，转成Byte还要乘dtype字节数。图中同时追踪逻辑位置和底层槽。",
+        "逻辑坐标(1,2)为什么对应从0编号的槽5？",
+        "对2×3行主序张量，Stride=[3,1]。地址偏移是1×3+2×1=5，即从0编号的槽5、按顺序数的第6个元素。偏移单位是元素，转成Byte还要乘dtype字节数。图中同时追踪逻辑位置和底层槽。",
         { formula: true },
       ),
       page(
@@ -147,7 +147,7 @@ export const compilerCourses = [
         "values",
         "名字与值的区别",
         "两次x赋值如何变成不同的SSA值？",
-        "x先乘2，再加1，会产生%u和%v两个不同值。连线表示消费者使用某次定义，不是笼统的“下一步”；点击输入值，跟踪它能影响哪些结果。",
+        "源码可以反复写x；SSA把输入记作%x0，再把乘2的结果记作%u、加1的结果记作%v。输入2时依次得到2、4、5。图中保留每次定义的身份，改变输入后沿依赖核对数值。下一章再看两条可以独立计算的分支。",
       ),
       page(
         "dependence",
@@ -258,14 +258,19 @@ export const compilerCourses = [
         "动态仍有条件",
         "一个B可变的版本是否自动适用于所有B？",
         "教学版本允许1≤B≤8且H=4；B=16或H=8仍不适用。Tile、对齐、分支和数据相关形状都可能继续引入约束。",
-        { formula: true, quiz: true },
+        { formula: true, quiz: true, evidence: {
+          formula: math("<mrow><mi>valid</mi><mo>=</mo><mo>(</mo><mn>1</mn><mo>≤</mo><mi>B</mi><mo>≤</mo><mn>8</mn><mo>)</mo><mo>∧</mo><mo>(</mo><mi>H</mi><mo>=</mo><mn>4</mn><mo>)</mo></mrow>"),
+          derive: ["B是Batch大小，H是隐藏维。本教学版本固定H=4，允许整数B从1到8。", "[2,4]、[4,4]、[8,4]满足同一组条件；[16,4]或[2,8]不满足。", "符号B保留到运行时求值，但范围与轴之间的关系仍要检查。"],
+        } },
       ),
       page(
         "amortize",
         "编译成本怎样摊销",
         "运行更快的特化产物，为什么短任务仍可能更慢？",
         "假设编译100ms、每次执行省1ms，需要超过100次才抵消编译成本；缓存和冷启动必须进入比较。这里的时间是人为成本账本。",
-        { code: true },
+        { code: true, formula: true, evidence: {
+          code: "compile_ms = 100\nbaseline_ms, optimized_ms = 5, 4\nfor n in [50,100,200]:\n    baseline = n * baseline_ms\n    compiled = compile_ms + n * optimized_ms\n    # 50次:250/300；100次:500/500；200次:1000/900",
+        } },
       ),
     ],
     formula: math(
@@ -315,18 +320,25 @@ export const compilerCourses = [
         "常量何时可提前算",
         "(2+3)×x中的哪个部分不依赖运行输入？",
         "2+3可成为常量5；乘x仍必须运行。对照x变化观察输出仍随输入改变。常量传播不能把数据相关值当常量。",
-        { code: true },
+        { code: true, evidence: {
+          code: "# 原创教学骨架：只折叠不依赖x的常量\nconstant = 2 + 3\ndef after_fold(x): return constant * x\nassert after_fold(2)==10 and after_fold(3)==15",
+        } },
       ),
       page(
         "float",
         "代数恒等式的边界",
         "实数成立的变形，浮点结果一定逐位相同吗？",
         "大数、小数和抵消的顺序会改变舍入。只有允许的精度语义下才能进行相关重排；图给出显式舍入后的不同中间值。",
-        { quiz: true },
+        { quiz: true, evidence: {
+          question: "三位有效十进制舍入下，1000+(-1000+0.4)与(1000-1000)+0.4相同吗？",
+          options: ["相同，实数加法满足结合律", "不同，分别为0与0.4", "不同，是因为输入x的Shape不同"],
+          correct: 1,
+          explain: "第一条先将-999.6舍入为-1000，再相加得0；第二条先抵消为0，再加0.4。此例明确是十进制模型，不是FP16硬件模拟。",
+        } },
       ),
     ],
     formula: math(
-      "<mrow><mo>(</mo><mi>x</mi><mo>+</mo><mn>1</mn><mo>)</mo><mo>+</mo><mo>(</mo><mi>x</mi><mo>+</mo><mn>1</mn><mo>)</mo><mo>=</mo><mn>2</mn><mo>(</mo><mi>x</mi><mo>+</mo><mn>1</mn><mo>)</mo></mrow>",
+      "<mrow><mi>u</mi><mo>=</mo><mi>x</mi><mo>+</mo><mn>1</mn><mo>;</mo><mo>(</mo><mi>x</mi><mo>+</mo><mn>1</mn><mo>)</mo><mo>+</mo><mo>(</mo><mi>x</mi><mo>+</mo><mn>1</mn><mo>)</mo><mo>→</mo><mi>u</mi><mo>+</mo><mi>u</mi></mrow>",
     ),
     derive: [
       "x=2时，两次x+1各得到3。",
@@ -365,20 +377,27 @@ export const compilerCourses = [
         "外部使用不能消失",
         "u在链外还被读取，融合后可以完全不保存u吗？",
         "用消费者位置区分私有中间值和外部可见值。v可以只留在融合内核中，但u若仍有外部消费者，就要以满足语义的形式保留。",
-        { code: true },
+        { code: true, evidence: {
+          code: "u = 2*x\nv = u+1\ny = relu(v)\n# 若链外仍消费u，融合版本也要按所需格式输出u\nreturn y, u  # 不能只返回y而丢失可观察结果",
+        } },
       ),
       page(
         "alias",
         "别名制造的反例",
         "先保存a[0]再覆盖a[0]，为什么不能把读移到写之后？",
         "初值2，旧值必须读2，写后是9；错误顺序会让旧值变9。这里比对实际槽值，不以变量名推断独立。",
-        { quiz: true },
+        { quiz: true, evidence: {
+          question: "a[0]初值2，要求保存旧值后把a[0]写成9。把读取放到写入后还等价吗？",
+          options: ["等价，最终a[0]仍为9", "不等价，保存的旧值由2变9", "只要两个变量名不同就等价"],
+          correct: 1,
+          explain: "可观察结果包括保存的旧值和最终内存。二者共享同一地址，不能只比较最后写入值。",
+        } },
       ),
       page(
         "precision",
         "收益与合法性分开",
         "少一次写回，是否允许改变归约和舍入规则？",
-        "归约、dtype转换和外部可见结果都属于语义条件。先确认等价性与误差要求，再讨论减少的字节和可能增加的资源。",
+        "假设中间值必须舍入到三位有效十进制数：1000+0.4先存为1000，再减1000得到0。若融合时擅自保留1000.4，最终得到0.4。融合可以省写回，但仍要保留要求的中间舍入；这里的格式仅供手算。",
       ),
     ],
     formula: math(
@@ -495,8 +514,10 @@ export const compilerCourses = [
         "bufferize",
         "值怎样变成可写对象",
         "原位更新为什么要先分析旧值的后续读取？",
-        "如果旧张量仍要被读，原位写入会破坏旧值语义；需要副本或其它合法安排。Bufferization同时决定内存表示和能否复用。",
-        { code: true },
+        "旧a=[2,5]还要参与sum(a)=7；新b要求把第0项变成9。若把b原位写进a，后续读取旧a会算成14。Bufferization要检查这种读写冲突，再决定使用独立缓冲、合法改写时序或原位复用。",
+        { code: true, evidence: {
+          code: "a=[2,5]\nb=a.copy()  # a仍被后续读取，先保留旧值\nb[0]=9\nassert sum(a)==7 and b==[9,5]\n# 若直接b=a，赋值后sum(a)会变14",
+        } },
       ),
     ],
     formula: math(
@@ -534,7 +555,7 @@ export const compilerCourses = [
     ],
     source: "triton",
     section:
-      "Matrix multiplication tutorial：program tiling、memory layout和目标相关优化；四Lane示例为原创。",
+      "Matrix multiplication tutorial：program tiling、memory layout和目标相关优化；两Lane四元素示例为原创。",
     terms:
       "ownership|某个值由哪个线程或寄存器持有;lane|Warp内逻辑线程位置;shuffle|线程间寄存器值交换的一类操作;layout conversion|在保持逻辑值的同时改变执行归属",
     chapters: [

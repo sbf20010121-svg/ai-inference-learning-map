@@ -6,6 +6,7 @@ import {
 } from "./research-models.js";
 import {
   schedulerRounds,
+  schedRequests,
   moeRoutes,
   combineExample,
   flashSteps,
@@ -117,12 +118,8 @@ export function courseModel(id, changed = false) {
       return [
         bars(
           "待计算量",
-          [
-            ["A Decode", 1],
-            ["B Prefill", 6],
-            ["C Prefill", 4],
-          ],
-          "FCFS 教学顺序；不是当前 vLLM 的全部策略。",
+          schedRequests.map((request) => [`请求${request.id} ${request.kind}`, request.promptPending || 1]),
+          "A已算6位置、正继续生成；B有6个输入位置、C有4个输入位置待算。每轮预算重置，按A→B→C查看；这是固定教学顺序。",
         ),
         ...r.map((x) =>
           bars(

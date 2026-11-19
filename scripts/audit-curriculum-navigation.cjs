@@ -27,7 +27,7 @@ const fs = require("node:fs");
       .filter({ has: p.locator('[data-dtopic="' + u.courses[0] + '"]') });
     await unit.locator("summary").click();
     await unit.locator('[data-dtopic="' + u.courses[0] + '"]').click();
-    await p.waitForSelector(".mechanism-chapter");
+    await p.waitForSelector(".learning-section");
     assert.ok(p.url().includes("depth/" + u.courses[0] + "/"));
     await p.locator(".course-orientation [data-course-home]").click();
     await p.waitForSelector(".course-unit");
@@ -45,19 +45,20 @@ const fs = require("node:fs");
     "tensor-address",
   );
   await p.locator('[data-net-deep="tensor-address"]').click();
-  await p.waitForSelector(".mechanism-chapter");
+  await p.waitForSelector(".learning-section");
   await p.locator(".mechanism-record summary").click();
   await p.locator("#focusNote").fill("合成独立课笔记：转置不搬运");
   await p.locator('[data-f-mark="review"]').click();
   if (!(await p.locator("#focusNote").isVisible()))
     await p.locator(".mechanism-record summary").click();
+  await p.locator("#optionalMechanism").evaluate(panel => { panel.open = true; });
   await p.locator('[data-mech-key="pick"][data-mech-value="1"]').click();
   assert.equal(
     await p.locator("#focusNote").inputValue(),
     "合成独立课笔记：转置不搬运",
   );
   await p.reload();
-  await p.waitForSelector(".mechanism-chapter");
+  await p.waitForSelector(".learning-section");
   const rec = await p.evaluate(
     () =>
       JSON.parse(localStorage.getItem("ai-inference-depth-progress-v1"))[
@@ -75,24 +76,27 @@ const fs = require("node:fs");
   await p.locator('[data-auditfilter="state"]').selectOption("partial");
   assert.equal(await p.locator(".audit-card").count(), 3);
   await p.goto(base + "#depth/pipeline-parallel/L2/wave");
-  await p.waitForSelector(".mechanism-chapter");
+  await p.waitForSelector(".learning-section");
+  await p.locator("#optionalMechanism").evaluate(panel => { panel.open = true; });
   const colors = await p
-    .locator(".mech-time-row:first-of-type span")
+    .locator(".mechanism-lab .mech-time-row:first-of-type span")
     .evaluateAll((n) => n.map((x) => getComputedStyle(x).backgroundColor));
   const allColors = await p
-    .locator(".mech-time-row span")
+    .locator(".mechanism-lab .mech-time-row span")
     .evaluateAll((n) => n.map((x) => getComputedStyle(x).backgroundColor));
   assert.equal(new Set(allColors).size, 3);
+  await p.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
   await p.screenshot({
     path: "test-results/v5-final-pipeline.png",
-    fullPage: true,
+    fullPage: false,
   });
   await p.setViewportSize({ width: 360, height: 950 });
   await p.goto(base + "#depth/observation-contract/L2/frame");
-  await p.waitForSelector(".mechanism-chapter");
+  await p.waitForSelector(".learning-section");
+  await p.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
   await p.screenshot({
     path: "test-results/v5-final-coordinates-mobile.png",
-    fullPage: true,
+    fullPage: false,
   });
   assert.equal(
     await p.evaluate(

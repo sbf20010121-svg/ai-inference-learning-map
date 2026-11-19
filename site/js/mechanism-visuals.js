@@ -1,4 +1,7 @@
+import { schedulerScenarioHTML, schedulerSummaryHTML, schedulerBudgetHTML, schedulerStatesHTML, schedulerDecisionsHTML, schedulerBlocksHTML, schedulerRoundExplanation } from "./scheduler-teaching.js";
 import { renderFoundationFigure } from "./foundation-figures.js";
+import { engineSystemFigureKinds, renderEngineSystemFigure } from "./engine-system-visuals.js";
+import { residualRmsFusion } from "./compiler-kernel-models.js";
 import {
   deltaTrace,
   deltaChunkSolve,
@@ -106,7 +109,7 @@ const choices = {
   external: [0, 1],
   bm: [2, 4],
   kStep: [1, 2],
-  cell: [0, 1, 4, 5],
+  cell: [0, 1, 2, 4, 5, 8, 10],
   high: [3, 6],
   tile: [0, 1, 2],
   latency: [4, 6],
@@ -304,7 +307,7 @@ function linear(fig, s) {
   else
     body = `${v.t ? blocks([...v.t.k, ...v.t.v], "输入：前2项k，后2项v") : ""}<div class="mech-matrix-row">${matrixView(v.old, "① 旧S")}${matrixView(v.decayed, "② γS")}${matrixView(v.write, "④ 写入量")}${matrixView(v.S, "⑤ 新S")}</div>${metrics(
       [
-        ["③ 旧预测 kᵀ(γS)", vec(v.pred)],
+        ["③ 列预测 Mᵀk，M=γS旧", vec(v.pred)],
         [
           fig === "delta-update" && s.rule === "additive"
             ? "③ 对照：不减预测，直接用v"
@@ -358,7 +361,7 @@ function linear(fig, s) {
     ) +
     figure(
       body,
-      "同色矩阵格保持相同Key/Value坐标；数值是2×2教学状态，不是历史Token列表。",
+      "S为Key行×Value列；k、v、δ按列向量定义，图中向量分量横排显示。同色格保持相同坐标；2×2教学状态不是历史Token列表。",
     )
   );
 }
@@ -577,52 +580,21 @@ function compiler(fig, s) {
   );
 }
 function scheduler(fig, s) {
-  const rr = scheduleTrace(s.budget, s.capacity),
-    r = rr[s.round];
-  let body = "";
-  if (fig === "scheduler-requests" || fig === "scheduler-rounds")
-    body = rr
-      .map(
-        (x) =>
-          `<div class="mech-budget-line"><strong>第${x.round}轮</strong><div class="mech-budget">${x.chosen.flatMap((t) => Array.from({ length: t.n }, () => `<span class="request-${t.id}">${t.id}</span>`)).join("")}${Array.from({ length: x.left }, () => '<span class="unused">空</span>').join("")}</div><small>B/C待输入 ${x.requests[1].pending}/${x.requests[2].pending}</small></div>`,
-      )
-      .join("");
-  else
-    body = `<div class="mech-budget">${r.chosen.flatMap((t) => Array.from({ length: t.n }, () => `<span class="request-${t.id}">${t.id}</span>`)).join("")}${Array.from({ length: r.left }, () => '<span class="unused">空</span>').join("")}</div><div class="mech-request-state">${r.requests.map((t) => `<div class="request-${t.id}"><strong>${t.id}</strong><span>computed=${t.computed}</span><span>KV块=${t.blocks}</span><span>输入还缺=${t.pending}</span></div>`).join("")}</div>${r.rejected.length ? `<p class="mech-result">${r.rejected.map((t) => `${t.id}申请新增${t.extra}块，空闲仅${t.free}块，暂缓`).join("；")}</p>` : '<p class="mech-result">本轮所有被选中请求的KV申请都满足。</p>'}`;
-  return (
-    control(
-      "Token预算",
-      "budget",
-      [
-        [4, "4位置"],
-        [8, "8位置"],
-      ],
-      s,
-    ) +
-    control(
-      "KV块总容量",
-      "capacity",
-      [
-        [16, "16块"],
-        [2, "2块：资源紧张"],
-      ],
-      s,
-    ) +
-    control(
-      "观察轮次",
-      "round",
-      [
-        [0, "第1轮"],
-        [1, "第2轮"],
-        [2, "第3轮"],
-      ],
-      s,
-    ) +
-    figure(
-      body,
-      `本轮使用${r.used}/${r.budget}计算位置，剩余${r.left}；空闲KV块${r.free}。块大小4为教学假设，暂缓不模拟真实抢占。`,
-    )
-  );
+  const r = scheduleTrace(s.budget, s.capacity)[s.round];
+  const states = fig === "scheduler-requests" || fig === "scheduler-rounds";
+  const kv = fig === "scheduler-kv";
+  const controls = control("每轮计算预算", "budget", [[4, "4位置"], [8, "8位置"]], s) +
+    control("KV块总容量", "capacity", [[16, "16块"], [2, "2块：资源紧张"]], s) +
+    control("观察轮次", "round", [[0, "第1轮"], [1, "第2轮"], [2, "第3轮"]], s);
+  const body = schedulerSummaryHTML(r) +
+    (states ? schedulerStatesHTML(r) : "") +
+    schedulerBudgetHTML(r) +
+    (!states ? schedulerDecisionsHTML(r, kv) : "") +
+    (kv ? schedulerBlocksHTML(r) : "") +
+    `<p class="mech-result">${esc(schedulerRoundExplanation(r))}</p>`;
+  return `<div class="scheduler-view" data-scheduler-view="${fig}" data-round="${r.round}">${schedulerScenarioHTML()}${controls}${figure(body,
+    "这是同步教学演算：一轮执行完成后才进入下一轮；A起点已有2块KV，每块4位置。暂不模拟新到达、停止、抢占、共享前缀或推测解码。计算位置数不等于本轮输出Token数。",
+  )}</div>`;
 }
 function moe(fig, s) {
   const d = expertTrace(s.k),
@@ -671,9 +643,9 @@ function moe(fig, s) {
           `<section><h3>E${b.e} / GPU${b.gpu}</h3>${matrixView(
             b.records.map((x) => [x.t + 1, x.t + 2]),
             `X_e：M=${b.records.length}，H=2`,
-          )}<p class="mech-equation">X_e[M,H] · W_e[H,D]</p><small>每个专家权重不同；图中仅展示输入身份。</small></section>`,
+          )}${matrixView([[b.e+2],[0]], `W${b.e}：H=2，D=1`)}${b.records.length ? matrixView(b.records.map(x=>[x.output]), `Y${b.e}=X${b.e}W${b.e}`) : '<p>本轮无Token，不执行此组。</p>'}<small>本例只算一个投影坐标，完整专家FFN还含激活及其它投影。</small></section>`,
       )
-      .join("")}</div>`;
+      .join("")}</div>${metrics([["选中Token的专家输出",d.records.filter(x=>x.t===s.selectedToken).map(x=>`T${x.t}→E${x.e}: ${x.output}`).join("；")],["逐组独立", "各组使用自己的W，M随分配记录数改变；不是把专家权重拼成一份共享W"]])}`;
   else {
     let z =
       text(28, 25, "Token身份 / 所在GPU") + text(410, 25, "专家权重 / 所在GPU");
@@ -706,7 +678,11 @@ function moe(fig, s) {
     controls +
     figure(
       body,
-      "Token的身份颜色跨分桶和合并保持一致；虚线表示跨GPU数据传输。Grouped GEMM是专家计算组织，不是通信本身。",
+      fig === "moe-scores"
+        ? "Router logits是自设输入，未运行真实Router网络。本例对选中的logits做Softmax，模型可采用不同评分或归一化约定。选专家与生成词表Token是不同的Top-k用途。"
+        : fig === "expert-matrices"
+          ? "每条路由输入取[t+1,t+2]，专家e权重列为[e+2,0]，因此输出(t+1)(e+2)，与合并图的单坐标输出一致。全部数值为教学构造；Grouped GEMM只组织这些独立组，不代表完整MoE内核。"
+          : "Token的身份颜色跨分桶和合并保持一致；虚线表示跨GPU数据传输。单向记录数不是字节数：还需激活宽度、dtype和元数据。输出是自设专家投影的单坐标，不是已训练专家。",
     )
   );
 }
@@ -819,7 +795,7 @@ function attention(fig, s) {
       s,
     ) +
     figure(
-      `${scores}<div class="mech-softmax-read">${Array.from({ length: 4 }, (_, i) => `<span class="${i < s.tile * 2 ? "read" : ""}">K${i} / V${i}</span>`).join("")}</div>${
+      `${scores}${values}<div class="mech-softmax-read">${Array.from({ length: 4 }, (_, i) => `<span class="${i < s.tile * 2 ? "read" : ""}">K${i} / V${i}</span>`).join("")}</div>${
         s.tile === 2
           ? `<div class="mech-contribution"><div><strong>旧贡献 × α=${f(v.alpha)}</strong>${metrics(
               [
@@ -848,9 +824,15 @@ function attention(fig, s) {
 function gemm(fig, s) {
   const d = tileTrace(s.bm, s.kStep),
     row = Math.floor(s.cell / 4),
-    col = s.cell % 4;
+    col = s.cell % 4,
+    tileRow = Math.floor(row / s.bm) * s.bm,
+    tileCol = Math.floor(col / 2) * 2;
+  const owns = (i, j, axis) =>
+    fig === "gemm-tiles"
+      ? axis === "row" ? i >= tileRow && i < tileRow + s.bm : j >= tileCol && j < tileCol + 2
+      : axis === "row" ? i === row : j === col;
   const highlight = (M, label, axis) =>
-    `<figure class="mech-matrix"><figcaption>${label}</figcaption><div class="mech-grid" style="--n:4">${M.map((r, i) => r.map((x, j) => `<span class="${(axis === "row" && i === row) || (axis === "col" && j === col) ? "selected" : ""}">${x}</span>`).join("")).join("")}</div></figure>`;
+    `<figure class="mech-matrix"><figcaption>${label}</figcaption><div class="mech-grid" style="--n:4">${M.map((r, i) => r.map((x, j) => `<span class="${owns(i,j,axis) ? "selected" : ""}">${x}</span>`).join("")).join("")}</div></figure>`;
   if (fig === "tile-boundary" || fig === "roofline")
     return (
       control(
@@ -871,9 +853,9 @@ function gemm(fig, s) {
     );
   return (
     control(
-      "当前输出元素",
+      fig === "gemm-tiles" ? "追踪输出Tile中的元素" : "当前输出元素",
       "cell",
-      [
+      fig === "gemm-tiles" ? [[0,"C[0,0]"],[2,"C[0,2]"],[8,"C[2,0]"],[10,"C[2,2]"]] : [
         [0, "C[0,0]"],
         [1, "C[0,1]"],
         [4, "C[1,0]"],
@@ -900,7 +882,7 @@ function gemm(fig, s) {
       s,
     ) +
     figure(
-      `<div class="mech-matrix-row">${highlight(d.A, "A：高亮当前输出的输入行", "row")}${highlight(d.B, "B：高亮当前输出的输入列", "col")}${matrixView(d.C, `C：已累计${d.K}个K位置`)}</div><p class="mech-equation">C[${row},${col}] = ${d.A[
+      `<div class="mech-matrix-row">${highlight(d.A, fig === "gemm-tiles" ? "A：该Tile复用的行带" : "A：当前元素的输入行", "row")}${highlight(d.B, fig === "gemm-tiles" ? "B：该Tile复用的列带" : "B：当前元素的输入列", "col")}${matrixView(d.C, `C：已累计${d.K}个K位置`)}</div><p class="mech-equation">C[${row},${col}] = ${d.A[
         row
       ]
         .slice(0, d.K)
@@ -1280,6 +1262,19 @@ function robot(fig, s) {
   );
 }
 function norm(fig, s) {
+  if (fig === "norm-fusion") {
+    const d = residualRmsFusion(!!s.fusion, !!s.external);
+    return control("残差相加与RMSNorm", "fusion", [[0, "两个Kernel"], [1, "融合Kernel"]], s) +
+      control("残差和z是否还要输出", "external", [[0, "只供Norm使用"], [1, "后续还要读z"]], s) +
+      figure(
+        blocks(d.x, "输入x") + blocks(d.residual, "残差r") +
+          `<div class="mech-buffers"><section class="${d.materializeSum ? "materialized" : "onchip"}">${blocks(d.sum, "z=x+r")}<small>${d.materializeSum ? "保留全局结果z" : "z留在融合Kernel内部"}</small></section></div>` +
+          blocks(d.squares, "同一行的z²，仍必须完整归约") +
+          metrics([["平方均值", f(d.meanSquare)], ["共同分母", f(d.denominator)], ["Kernel数", d.kernels], ["逻辑读 / 写元素次", `${d.reads} / ${d.writes}`]]) +
+          blocks(d.output, "输出y，γ=[1,1]，ε=10⁻⁵"),
+        "颜色与边界只标明中间值在哪里可见。融合保留z=[3,4]、平方均值12.5和相同输出；外部还需要z时，不能删除它的输出。逻辑IO不是实测DRAM流量或加速比。",
+      );
+  }
   if (fig === "rope-rotation") {
     const r = rotor(s.angle);
     let z =
@@ -1703,23 +1698,24 @@ function world(fig, s) {
           [4, "4帧"],
         ],
         s,
-      ) +
+      ) + (fig === "world-attention" ? control("保留哪些位置对", "scenario", [[0,"完整时空配对"],[1,"只保留帧内"]],s) : "") +
       figure(
         `<div class="mech-video-frames">${Array.from({ length: F }, (_, i) => `<section><strong>帧${i}</strong><div>${Array.from({ length: 4 }, (_, j) => `<span class="owner-${i}">${i}:${j}</span>`).join("")}</div></section>`).join("")}</div>${
           fig === "world-attention"
             ? matrixView(
                 Array.from({ length: N }, (_, i) =>
                   Array.from({ length: N }, (_, j) =>
-                    Math.floor(i / P) === Math.floor(j / P) ? "内" : "跨",
+                    Math.floor(i / P) === Math.floor(j / P) ? "内" : s.scenario ? "0" : "跨",
                   ),
                 ),
-                "行Query / 列Key：同帧与跨帧配对",
+                s.scenario ? "只保留同帧；0表示跨帧连接被移除" : "行Query / 列Key：同帧与跨帧配对",
               )
             : ""
         }${metrics([
           ["Token数 F×P", N],
           ["全局配对 N²", N * N],
           ["仅帧内 F×P²", F * P * P],
+          ...(fig === "world-attention" ? [["本次保留位置对",s.scenario ? F*P*P : N*N],["时间信息是否仍直接跨帧",s.scenario ? "否：还需要额外时间混合机制" : "允许跨帧配对；实际Mask由模型定义"]] : []),
         ])}`,
         "每帧4个Patch Token；“内/跨”是连接身份，不是注意力权重。省掉跨帧连接会改变模型功能。",
       )
@@ -2005,7 +2001,16 @@ function requestQueue(fig, s) {
     )
   );
 }
-function mla(s) {
+function mla(s, positional = false) {
+  if (positional) {
+    const positionKey = rotor(s.angle),
+      contentScore = 4,
+      positionScore = positionKey.x;
+    return control("只改变Key相对Query的位置角", "angle", [[0,"0°"],[90,"90°"],[180,"180°"]], s) + figure(
+      `<div class="mech-matrix-row">${matrixView([[1,0]],"固定Query位置向量 qᴿ")}${matrixView([[positionKey.x,positionKey.y]],"旋转后的Key位置向量 kᴿ")}</div>${metrics([["已吸收的内容分数",contentScore],["位置分数 qᴿ·kᴿ",f(positionScore)],["相加后的分数（省略统一缩放）",f(contentScore+positionScore)],["错误删除位置支路",contentScore]])}`,
+      "内容项始终为4，位置项随相对旋转变化。这个2维反例说明内容投影的结合律不能删除位置分支；不是完整MLA的头维、RoPE频率或权重。",
+    );
+  }
   const c = [2, 1],
     U = [
       [1, 0],
@@ -2038,6 +2043,16 @@ function mla(s) {
   );
 }
 function profile(fig, s) {
+  if (fig === "profile-evidence") {
+    const selected = !!s.scenario;
+    const samples = selected ? 25 : 100, waiting = selected ? 20 : 40;
+    return control("合成采样记录", "scenario", [[0, "记录A"], [1, "记录B"]], s) +
+      figure(
+        `<div class="mech-scroll"><table class="ff-table"><thead><tr><th>计数口径</th><th>A</th><th>B</th></tr></thead><tbody><tr><td>全部采样数</td><td>100</td><td>25</td></tr><tr><td>某等待状态样本</td><td>40</td><td>20</td></tr><tr><td>该状态占比</td><td>40%</td><td>80%</td></tr><tr><td>相同任务绝对耗时</td><td>未给出</td><td>未给出</td></tr></tbody></table></div>` +
+        metrics([["当前等待样本数", waiting], ["当前占比", `${100*waiting/samples}%`], ["能否判定B更慢", "不能，分母、采样条件和绝对时长还未对齐"]]),
+        "等待样本减少、占比反而上升并不矛盾。采样比例不是耗时本身；先核对issue-slot利用、工作负载和采样口径，再用受控改动与绝对时长检验原因。这些计数为合成反例。",
+      );
+  }
   const hot = s.scenario ? 2 : 4;
   return (
     control(
@@ -2075,6 +2090,8 @@ function profile(fig, s) {
   );
 }
 export const figureKinds = new Set([
+  "decoder-layer",
+  ...engineSystemFigureKinds,
   "tensor-memory",
   "tensor-completion",
   "flow-training",
@@ -2125,6 +2142,7 @@ export const figureKinds = new Set([
   "robot-sync",
   "robot-async",
   "norm-reduction",
+  "norm-fusion",
   "rope-rotation",
   "swiglu",
   "quant-numberline",
@@ -2151,7 +2169,9 @@ export const figureKinds = new Set([
   "slo-points",
   "mla-expand",
   "mla-absorb",
+  "mla-position",
   "profile-critical",
+  "profile-evidence",
   "profile-amdahl",
   "projection-tiles",
   "causal-matrix",
@@ -2165,6 +2185,8 @@ export const figureKinds = new Set([
 ]);
 export function renderMechanism(fig, s = defaultLab()) {
   if (fig.startsWith("foundation/")) return renderFoundationFigure(fig, s);
+  if (fig === "decoder-layer") return renderFoundationFigure("foundation/transformer-layer/residual", s);
+  if (engineSystemFigureKinds.has(fig)) return renderEngineSystemFigure(fig, s);
   if (!figureKinds.has(fig)) throw Error(`Unknown mechanism figure: ${fig}`);
   if (fig.startsWith("delta-") || fig === "state-tiles" || fig === "state-cost")
     return linear(fig, s);
@@ -2206,7 +2228,7 @@ export function renderMechanism(fig, s = defaultLab()) {
     fig === "action-chunk"
   )
     return robot(fig, s);
-  if (["norm-reduction", "rope-rotation", "swiglu"].includes(fig))
+  if (["norm-reduction", "norm-fusion", "rope-rotation", "swiglu"].includes(fig))
     return norm(fig, s);
   if (fig.startsWith("quant-")) return quant(fig, s);
   if (fig.startsWith("spec-")) return speculativeFigure(fig, s);
@@ -2219,7 +2241,7 @@ export function renderMechanism(fig, s = defaultLab()) {
     return pipeline(fig, s);
   if (fig === "request-queue" || fig === "slo-points")
     return requestQueue(fig, s);
-  if (fig.startsWith("mla-")) return mla(s);
+  if (fig.startsWith("mla-")) return mla(s, fig === "mla-position");
   if (fig.startsWith("profile-")) return profile(fig, s);
   if (fig === "causal-matrix")
     return (

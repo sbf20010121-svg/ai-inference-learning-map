@@ -1,29 +1,88 @@
 name: Test and deploy learning atlas
 
 on:
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: true
 
 jobs:
-  test-and-deploy:
+  test:
+    name: Validate curriculum and mechanisms
     runs-on: ubuntu-latest
+    concurrency:
+      group: curriculum-tests-${{ github.event_name }}-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate graph, lessons and numerical invariants
+        run: npm test
+
+  browser-audit:
+    name: Audit desktop, mobile and learning records
+    needs: test
+    # Pin the OS alongside Playwright so ubuntu-latest upgrades cannot break the browser.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    concurrency:
+      group: curriculum-browser-${{ github.event_name }}-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated browser test tools
+        run: |
+          npm install --no-save --package-lock=false playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Inspect every course and public gateway
+        run: |
+          mkdir -p test-results
+          python3 -m http.server 5173 --bind 127.0.0.1 -d site > test-results/server.log 2>&1 &
+          atlas_server_pid=$!
+          trap 'kill "$atlas_server_pid"' EXIT
+          curl --fail --silent --retry 6 --retry-connrefused --retry-delay 1 http://127.0.0.1:5173/ > /dev/null
+          kill -0 "$atlas_server_pid"
+          node scripts/audit-reading.cjs
+          node scripts/audit-curriculum.cjs
+          node scripts/audit-chapters.cjs
+          node scripts/audit-gateways.cjs
+          node scripts/audit-curriculum-navigation.cjs
+          node scripts/audit-diagram-geometry.cjs
+          node scripts/audit-system-spine.cjs
+      - name: Save audit results and review screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: curriculum-browser-audit
+          path: test-results/
+          retention-days: 7
+
+  deploy:
+    name: Deploy main to GitHub Pages
+    needs: [test, browser-audit]
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: Validate graph and lesson data
-        run: npm test
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload static site

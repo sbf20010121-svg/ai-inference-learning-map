@@ -38,3 +38,19 @@ The original `lessons` entries remain stable L1 gateways. Add deeper work into `
 ### V1.5 追加：图解与记忆优先
 
 现有 L1 概览仍然保留，但用户进入核心 L2/L3 节点后必须能在本页看到完整的关键讲解：系统位置图、机制分步图、比较取舍图、张量/执行例子和三点总结。不得让用户必须跳转外部文档才能得到基本机制。外部资料仍用于核实细节。交互必须揭示数据流、控制流或不同配置下的因果差异，而不是只有倍数变化。
+
+
+## V6 · Chapter learning-arc completeness (2026-11-19)
+
+A chapter must not introduce a new term as if the learner already knows it. Use the chapter-specific knowledge arc in site/js/chapter-arc.js for high-priority chapters. The focused reader renders the arc in this order:
+
+1. Opening context — what problem this chapter inherits and why the next question is necessary.
+2. First-use vocabulary — explain unfamiliar objects, symbols and acronyms before the figure or derivation uses them.
+3. Mechanism — show the actual object/data/state change; choose math, trace, source, architecture, timeline or resource model according to the subject.
+4. Evidence and boundary — state assumptions, what the example proves, what it does not prove, and what source/measurement would be needed.
+5. Takeaway — answer the chapter's opening question in a concise, defensible conclusion.
+6. Bridge — explain why the next chapter follows from this result, or how this result connects back to the system.
+
+These are completeness criteria, not six mandatory headings or a universal page template. Inspect each newly introduced term at its first use. A term is not adequately introduced merely because it appears in a vocabulary list after the diagram. If it is needed to understand the diagram, define it before the diagram.
+
+Do not confuse a section title with an explanation, a formula with a derivation, pseudocode with a real API, a local result with an end-to-end conclusion, or a chapter viewed with a concept understood.

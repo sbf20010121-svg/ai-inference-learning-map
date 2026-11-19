@@ -36,13 +36,13 @@ D('world-model','理解世界模型为何出现时空 Token 和反复预测；�
  P('预测未来','预测头 / 生成网络','历史 state + 备选动作','直接预测潜状态，或多步更新生成未来表示','next_z 或 future_frames','预测误差可能随 Rollout 累积；多次生成也带来推理延迟。',['future_state = predict(state, candidate_action)', 'if generative_mode:', '  future_state = iterative_refinement(future_state)']),
  P('交给规划/训练','下游规划器或数据生成','多个备选未来','评价后选择动作，或离线生成数据','选定动作 / 训练样本','世界模型不一定处于机器人的实时控制环中。',['if planning:', '  action = select_by_score(future_states)', 'else:', '  dataset.add(future_states)'])],
  '仅示意一种条件预测流程；视频扩散、Dreamer 潜状态、基于动力学的模型等差异很大。'),
-D('vllm-scheduler','用请求状态与 Token Budget 理解一次调度，而不是记住函数名单。','示意 B=8：A Decode 申请 1，长 Prompt B 本轮获 7，短 Prompt C 等待；下一轮再考虑剩余 Token。',
- [['B','本轮 Token 计算预算；不是 Byte'],['req','一个等待或运行中的请求'],['n_new','本轮计划计算的 Token 个数'],['KV','本轮须占用或重用的 KV Block']], [
- P('计算待处理量','EngineCore / Scheduler','Running、Waiting 请求 + num_computed','按每个请求已算与目标位置求差','每请求还需计算多少 Token','V1 不必硬分成两个完全独立的 Prefill/Decode 调度循环。',['budget = max_scheduled_tokens', 'for req in running_or_admissible_waiting:', '  pending = req.target_tokens - req.num_computed_tokens']),
- P('决定本轮 Token','Scheduler','pending、budget、策略/优先级','在预算内截断长输入；决定本轮取多少','n_new[req]','这里仅代表核心思想；真实调度还考虑输入类型与推测位置。',['n = min(pending, budget)', 'if n == 0: continue', 'budget -= n']),
- P('检查 KV 资源','KVCacheManager','请求、当前缓存布局、n','分配 KV Block，必要时让请求等待或抢占','有效分配或调度失败','只有 Token Budget 足够还不够；显存块资源也必须就绪。',['blocks = kv_cache.allocate_slots(req, n)', 'if blocks is None:', '  postpone_or_preempt(req)    # 教学分支', '  continue']),
- P('提交模型前向','Executor / Model Runner','请求、n_new、KV Block 映射','准备张量与元数据，让 GPU 执行该轮计算','输出 Token / Cache 状态','Scheduler 分配工作，并非直接在 CPU 上做矩阵乘法。',['schedule = build_schedule(accepted_requests)', 'outputs = model_runner.execute(schedule)', 'scheduler.update_from_outputs(outputs)'])],
- 'vLLM V1 源码持续演进；真实策略还含 prefix cache、异步 KV、preemption、multimodal、speculative decoding。'),
+D('vllm-scheduler','从轮前状态推到分配，再等执行完成后更新；调度提交不等于位置已经算完。','沿用主课：A已算6位置并占2块，下一位置待Decode；B/C有6/4个输入待算。每块4位置、容量16块、T_budget=8，按A→B→C，首轮分配1/6/1；第二轮1/1/3。',
+ [['T_budget','每轮计算位置总预算；与请求B的编号不同'],['req / computed','请求对象 / 已完成模型计算的位置数'],['prompt_left / pending','尚未处理的输入数 / 接下来待算的位置数'],['n','本轮候选位置数；KV分配成功才真正入选'],['free_blocks','当前未占用的KV块数；容量减去已有占用'],['KV块','本例每块可放4个位置的Key/Value状态']], [
+ P('读取轮前状态','教学Scheduler','A/B/C的输入长度、computed和块占用','重置预算；输入未算完则取剩余输入，否则继续Decode1','每条请求的pending','输入剩余0并不表示请求结束；本例假设没有EOS停止。',['budget_left = T_budget  # 每轮重新开始', 'free_blocks = capacity - sum(r.blocks for r in [A,B,C])', 'for req in [A,B,C]:', '  prompt_left = max(0, req.prompt - req.computed)', '  pending = prompt_left if prompt_left > 0 else 1']),
+ P('形成候选位置','教学Scheduler','pending和budget_left','候选数量取两者较小值，保持请求内位置连续','n与请求内位置范围','先形成候选，不能在KV检查失败时仍扣掉这份预算。',['n = min(pending, budget_left)', 'if n == 0: continue', 'positions = range(req.computed, req.computed+n)']),
+ P('检查并预留KV','教学缓存账本','已有块、computed、候选数量n','确认新增块可分配后，才记录入选并扣预算','selected和更新后的空闲块、计算预算','初始A有尾块空槽；B/C必须拿到新块。容量2时B/C暂缓，本例不做抢占。',['extra = max(0, ceil((req.computed+n)/4) - req.blocks)', 'if extra > free_blocks: continue  # 不扣计算预算', 'reserve_blocks(req, extra)  # 同时更新req.blocks与free_blocks', 'selected.append((req, n))', 'budget_left -= n']),
+ P('执行完成后接续','Runner执行 → Engine更新','选中请求、位置与KV映射','准备并运行模型，等完成后更新computed；输入完成者可采样','轮后状态及下一轮待算Token','非末尾的Prefill分块不采样；刚采样Token没有在本轮再计算，不能提前加进computed。',['schedule = pack_metadata(selected)', 'outputs = execute_and_wait(schedule)', 'for req,n in selected:', '  req.computed += n', '  if req.computed >= req.prompt: req.next_token = sample(outputs[req.id])'])],
+ '固定顺序、三条请求、同步完成、无EOS停止或释放的教学伪代码；函数名不是vLLM API。真实策略的前缀复用、异步KV、抢占、多模态、推测解码需按固定版本另查。'),
 D('kv-cache','Block Table 是映射，物理 KV Block 是数据；一个请求的块可非连续。','示意 block_size=4、序列长 9：逻辑上需要 ceil(9/4)=3 块；A[0] 和 B[0] 可在前缀命中时映射同一物理块。',
  [['S','缓存中的 Token 位置数'],['block_size','一个逻辑 KV 块的 Token 容量'],['table[r][i]','请求 r 的逻辑第 i 块映射的物理块编号'],['refcount','用于说明共享/持有关系的引用概念']], [
  P('得到逻辑块范围','Scheduler / 缓存管理器','请求 r、历史长度 S','按块容量计算本轮需要多少逻辑块','逻辑块索引 0...ceil(S/size)-1','逻辑连续不代表物理显存地址连续。',['num_blocks = ceil_div(S, block_size)', 'logical_ids = range(num_blocks)']),

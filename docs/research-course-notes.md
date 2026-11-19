@@ -6,14 +6,14 @@
 
 **精确定义：** 此页只示范 Gated DeltaNet v1 的一种标量门控、无额外归一化的核心状态更新。简化为 `K=V=2`、单头、`q=k`、单位基 `k`、固定 `beta` 与 `gamma`，并不是完整模型层。省略输入投影、短卷积、输出 Gate、层归一化、不同模型的 head sharing 与训练反向传播。
 
-FLA 公开 `fused_recurrent_gated_delta_rule_fwd_kernel` 实现的标量门控路径，逻辑顺序是：
+FLA 公开 `fused_recurrent_gated_delta_rule_fwd_kernel` 的标量门控路径，按本页统一的 `S∈R^{K×V}`、`k/q∈R^{K×1}`、`v/δ∈R^{V×1}` 列向量约定，可将逻辑顺序写成以下教学骨架；它不是源码逐字摘录，实际布局还需核对 `STATE_V_FIRST`：
 
-1. `h *= exp(g)`；
-2. `delta = beta * (v - k^T h)`（代码可能因 `STATE_V_FIRST` 改变矩阵朝向）；
-3. `h += outer(k, delta)`；
-4. `o = q^T h`。
+1. `M = exp(g) * S`；
+2. `delta = v - M.T @ k`，此时残差尚未乘 `beta`；
+3. `S = M + beta * (k @ delta.T)`；
+4. `o = S.T @ q`。
 
-可重写为 `M_t=gamma*S_{t-1}`、`δ_t=v_t−k_tᵀM_t`、`S_t=M_t+beta*k_t*δ_tᵀ`；其中 `gamma=exp(g)`。
+对应等式为 `M_t=gamma*S_{t-1}`、`δ_t=v_t−M_tᵀk_t`、`S_t=M_t+beta*k_t*δ_tᵀ`；其中 `gamma=exp(g)`。等价的行残差是 `δ_tᵀ=v_tᵀ−k_tᵀM_t`，不可把列目标 `v_t` 与行预测 `k_tᵀM_t` 直接相减。实现的一维数组仅保存分量，不区分行列；页面公式需要显式区分。
 
 数学上有 `S_t=A_t S_{t−1}+B_t`，其中 `A_t=gamma*(I−beta*k_t k_tᵀ)`，`B_t=beta*k_t v_tᵀ`。两个 token 的组合是 `(A2*A1, A2*B1+B2)`；这只是理解 Chunk/Scan 有可能利用结合性的入门桥梁，绝不等价于 FLA 真正的高效 Chunk Kernel 的全部实现（其前向还涉及 Gate cumsum、WY 表示、块内处理和状态传递）。
 

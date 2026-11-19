@@ -31,6 +31,22 @@ test('vLLM illustrative token budget never overbooks, prefills C in two rounds',
  assert.equal(schedulerBudget(2).rows[2].remain,0);
 });
 
+test('独立 Scheduler 实验先说明新初态，不能被误读为主课程的下一轮',()=>{
+ for(let step=0;step<4;step++){
+  const html=renderGalleryCase('scheduler',step);
+  assert.ok(html.indexOf('独立对照示例')<html.indexOf('class="mg-figure"'));
+  assert.match(html,/A\/B 都已完成输入/);
+  assert.match(html,/长 9，尚未计算/);
+  assert.match(html,/初态与主课程的/);
+  assert.match(html,/T_budget/);
+  assert.doesNotMatch(html,/预算 B[=＜<]/);
+ }
+ const after=renderGalleryCase('scheduler',1);
+ assert.match(after,/完成后输入剩余 3 个位置/);
+ assert.match(renderGalleryCase('scheduler',0),/轮前输入剩余 9 个位置/);
+ assert.deepEqual(schedulerBudget(1).rows.map(r=>r.granted),[1,1,6]);
+});
+
 test('32 lanes × 4B: contiguous addresses cover 4 sectors, 8-float stride covers 32',()=>{
  const a=coalescingSegments(1),b=coalescingSegments(8);
  assert.deepEqual(a.addrs.slice(0,4),[0,4,8,12]);assert.deepEqual(b.addrs.slice(0,4),[0,32,64,96]);

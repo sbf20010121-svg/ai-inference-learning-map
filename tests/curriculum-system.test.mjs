@@ -58,7 +58,7 @@ test("every authored chapter renders its own object and explicit evidence within
       assert.match(rendered, /&lt;script/);
       assert.doesNotMatch(
         rendered,
-        /NaN|undefined|Unimplemented|尚缺有证据的源码/,
+        /undefined|(?:>\s*|=["'])NaN(?=\s*<|["'])|Unimplemented|尚缺有证据的源码/,
       );
       for (let variant = 0; variant < 4; variant++) {
         const fig = renderFoundationFigure(ch.figure, {

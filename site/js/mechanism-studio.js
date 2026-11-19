@@ -4,7 +4,10 @@
  * 参考资料：vLLM V1 architecture/disagg docs、PyTorch Dynamo docs、Dao-AILab/FlashAttention、NVIDIA Nsight Compute。
  */
 
+import { schedulerScenario, scheduleTrace } from './scheduler-model.js';
+
 const esc = (v='') => String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const schedulerLessonRounds = scheduleTrace();
 const STUDIO_IDS = ['pd-disagg','vllm-scheduler','compiler-lowering','attention-tiling','warp-issue'];
 export const featuredMechanismIds = Object.freeze(STUDIO_IDS);
 const progress=new Map();
@@ -32,13 +35,14 @@ export const featuredMechanisms={
   boundary:'输入：Running/Waiting 中的请求、已计算/待计算 Token 数、KV 资源。输出：本轮每条请求分配的 Token 数与执行元数据。',
   terms:[['Token Budget','一轮最多安排多少计算 Token，并非一个固定请求数'],['Chunked Prefill','一个长 Prompt 可以跨多个调度轮次计算'],['Model Runner','按照本轮调度结果准备张量并调用模型设备计算']],
   steps:[
-   {title:'读取当前请求状态',in:'Running A / Waiting B,C',out:'可调度请求集',do:'每条请求维护已计算 Token 数和需要推进的目标，不能只看队列里有几条请求。',why:'A 可能只缺 1 个新 Token，B 可能还有 10 个 Prefill Token 等待。',trap:'V1 不是严格“先完整 Prefill 一批，再统一 Decode 一批”。'},
-   {title:'填第一轮预算',in:'Budget=8；A 缺1，B 缺10，C 缺4',out:'A=1，B=7，C=0',do:'在本教学场景里，先给 Running A 的 1 Token，再将余下 7 个给较早等待的 B。',why:'B 的 Prompt 可以分块推进，但 C 这一轮需要继续等待。',trap:'此演示假设 KV 充足和先 Running 后 Waiting；真实调度还要检查更多条件。'},
-   {title:'填第二轮预算',in:'A 下一轮又缺1；B 余3，C 余4',out:'A=1，B=3，C=4',do:'同样 8 个 Token：A 继续 Decode，B 完成剩余 Prompt，C 的 4 个 Prompt Token 也能进入。',why:'调度在改变 GPU 实际输入形状，而非仅影响 CPU 等待时间。',trap:'本例忽略 Output Token 停止条件与真实请求到达抖动。'},
+   {title:'读取当前请求状态',in:'请求 A 已在生成；B/C 的输入尚未计算',out:'A 缺 1 个位置，B 缺 6 个输入位置，C 缺 4 个',do:'A 已计算 6 个位置并持有历史 KV；上次采样出的下一个 Token 尚未做前向。B/C 是两条新请求，Prompt 分别长 6 和 4。',why:'调度需要知道每条请求还有哪些位置可以推进；同样一条请求，待算量可能是 1、6 或 4。',trap:'A 的输入早已完成，不是空 Prompt；本例从它已经开始生成的中途观察。'},
+   {title:'填第一轮预算',in:'每轮预算 8；按 A→B→C 检查：待算 1、6、4',out:'A=1，B=6，C=1；C 的输入剩 3',do:'先给 A 1，剩 7；B 只缺 6，给完后剩 1；C 得到这 1 个。执行完成后，B 的 Prompt 已算完，可采样首个输出。',why:'8 是上限，B 不会因为还有预算就提前计算尚未采样出的下一位置；C 的输入可以分轮计算。',trap:'本轮算了 8 个位置，不表示输出了 8 个新 Token；KV 空间在此例中充足。'},
+   {title:'填第二轮预算',in:'预算重新为 8；A/B 各缺 1，C 输入剩 3',out:'A=1，B=1，C=3；用了 5，未用 3',do:'B 的首个输出在上一轮末采样，本轮把它送回模型做 Decode。C 继续完成余下 3 个输入位置。',why:'A/B 的再下一个 Token 要等这轮前向和采样后才知道，剩余预算不能凭空制造可计算位置。',trap:'预算每轮重置，不把上一轮的使用量扣到下一轮；空余预算不等于 GPU 空闲时间。'},
+   {title:'第三轮都在生成',in:'A/B/C 都完成输入；各有 1 个已采样、尚未前向的位置',out:'A=1，B=1，C=1；用了 3，未用 5',do:'按同样顺序各取 1 个 Decode 位置。C 在第二轮末采样首个输出，第三轮开始计算该位置。',why:'Prefill 与 Decode 的差别体现在待算位置数和历史状态，不必把它们分成永不混合的两批。',trap:'这里只演示普通自回归、每轮同步完成；未模拟推测解码、抢占、结束和新请求到达。'},
    {title:'交给 Model Runner',in:'每轮每请求的 scheduled_tokens 和 KV 映射',out:'本轮输入张量与设备 Kernel',do:'Runner 汇总本轮输入、位置等元信息并触发算子；后续 Token/状态更新进入下一轮。',why:'Scheduler 决定算哪些 Token；Runner/后端决定如何在 GPU 上算。',trap:'一次调度轮次不是单一 GPU Kernel，也不一定对应一个固定形状的 Batch。'}
   ],
   variants:['逐轮 Token 预算','请求状态的变化'],
-  check:{q:'同一轮 Budget=8，A 正在 Decode 需 1 Token，B 等待 Prefill 10 Token。教学场景中 B 第一轮可拿多少？',options:['10：Prefill 必须一次完成','7：A 用掉1，剩余7可做 B 的 Chunked Prefill','0：Decode 存在时不能做 Prefill'],correct:1,why:'V1 的 Token Budget 可以混合安排请求的不同 Token 数；本例假定没有 KV 资源不足或特殊优先级。'},
+  check:{q:'本例第 1 轮，预算为 8：A 需 1 个 Decode 位置，B/C 的输入分别还缺 6/4 个。按 A→B→C、KV 充足，B 应拿多少？',options:['7：A 用掉 1，余下的都必须给 B','6：B 只缺 6，剩余 1 个预算可给 C','0：Decode 存在时不能做 Prefill'],correct:1,why:'本轮分配同时受待算量和剩余预算限制：B 得 min(6,7)=6，不能提前计算尚未采样出的下一位置。随后 C 得 1，合计 1+6+1=8。'},
   recall:['调度的单位主要是本轮“要计算的 Token 数”，不只是请求数量。','Chunked Prefill 改变计算如何分轮，不等于 PD 分离。','调度决定 Shape 与执行机会，KV 资源与输出反馈决定下一轮。'],
   sources:[['vLLM V1 架构与 Scheduler','https://docs.vllm.ai/en/latest/design/arch_overview/'],['V1 Scheduler 源码','https://github.com/vllm-project/vllm/blob/main/vllm/v1/core/sched/scheduler.py']]
  },
@@ -108,16 +112,23 @@ function renderPD(s,variant){
  const kv=sub('真实中间对象：历史 KV 不只是“完成通知”',row(box('P 端 KV','每层 K/V块',s===1,'data'),arrow('映射、传输、就绪'),box('D 端 KV','可供 Attention 读取',s===2||s===3,'data'))+'<div class="m16-chipline"><span>示例：24 层 · 8 KV Head · HeadDim 128 · Prompt 1024 · BF16</span><b>KV 约 96 MiB</b><span>仅理想体积，未算元数据、网络协议和重叠</span></div>','示意计算');
  return lanes(nodes)+kv+`<p class="m16-figure-caption">${variant===0?'上排是控制面，下排是数据面；颜色表示当前讲解的阶段。':'相同模型不意味着相同部署资源预算；比较必须固定 GPU 总数与请求分布。'}</p>`;
 }
-export function slotCells(round){const items=round===1?[...Array(1).fill('A'),...Array(7).fill('B')]:[...Array(1).fill('A'),...Array(3).fill('B'),...Array(4).fill('C')];return `<div class="m16-slot-wrap">${items.map((x,i)=>`<div class="m16-slot m16-${x.toLowerCase()}" title="槽 ${i+1}：请求 ${x}">${x}<small>${i+1}</small></div>`).join('')}</div>`;}
+export function slotCells(round){
+ const trace=schedulerLessonRounds[round-1],items=trace?trace.chosen.flatMap(r=>Array(r.n).fill(r.id)):[];
+ while(items.length<schedulerScenario.defaultBudget)items.push('');
+ return `<div class="m16-slot-wrap">${items.map((x,i)=>x?`<div class="m16-slot m16-${x.toLowerCase()}" title="预算槽 ${i+1}：请求 ${x}">${x}<small>${i+1}</small></div>`:`<div class="m16-slot m16-free" style="color:var(--muted);background:var(--surface2)" title="预算槽 ${i+1}：未使用">—<small>未用</small></div>`).join('')}</div>`;
+}
 function renderScheduler(s,variant){
- const currentRound=s>=2?2:1;
- const r1=`<div class="m16-round ${currentRound===1?'m16-emphasis':''}"><strong>第 1 轮</strong>${slotCells(1)}<small>A Decode 1 + B Prefill 7 = 8</small></div>`;
- const r2=`<div class="m16-round ${currentRound===2?'m16-emphasis':''}"><strong>第 2 轮</strong>${slotCells(2)}<small>A Decode 1 + B Prefill 3 + C Prefill 4 = 8</small></div>`;
- const states=`<div class="m16-table-wrap"><table class="m16-table"><thead><tr><th>请求</th><th>原任务</th><th>第1轮后</th><th>第2轮后</th></tr></thead><tbody><tr><td>A / Running</td><td>每轮需 1 个新 Token</td><td>已执行本轮 1</td><td>下一轮再执行 1</td></tr><tr><td>B / Waiting</td><td>Prefill 10 个</td><td>已计算 7 / 10</td><td>10 / 10</td></tr><tr><td>C / Waiting</td><td>Prefill 4 个</td><td>已计算 0 / 4</td><td>4 / 4</td></tr></tbody></table></div>`;
- const top=row(box('Running A','本轮 Decode 缺 1',s===0,'data'),arrow(),box('Scheduler','Token Budget = 8',s===1||s===2,'ctrl'),arrow(),box('Model Runner','安排 GPU 前向',s===3,'device'));
- return top+sub(variant===0?'用 8 个可视 Token 槽理解调度':'已计算 Token 数如何变化',variant===0?`<div class="m16-rounds">${r1}${r2}</div>`:states,'固定教学场景')+
- (variant===0?`<div class="m16-legends"><span class="m16-a">● A：已有 Decode</span><span class="m16-b">● B：长 Prefill</span><span class="m16-c">● C：短 Prefill</span></div>`:'')+
- `<p class="m16-figure-caption">假设 KV 空间足够、无抢占/额外优先级、可使用 Chunked Prefill；真实 V1 仍需按对应版本的 Scheduler 代码核对。</p>`;
+ const currentRound=s===0?0:Math.min(s,3),trace=schedulerLessonRounds[Math.max(0,currentRound-1)];
+ const [a,b,c]=schedulerScenario.requests;
+ const setup=`<p class="m16-figure-caption"><strong>与主课程相同的三请求示例。</strong>A/B/C 是请求编号。A 的输入已完成，已有 ${a.computed} 个位置的 KV，本轮续算 1 个位置；B/C 的新输入分别有 ${b.prompt}/${c.prompt} 个位置待算。</p><p class="m16-small">每轮预算重置为 ${schedulerScenario.defaultBudget}，固定按 A→B→C 检查；KV 共 ${schedulerScenario.defaultCapacity} 块、每块 ${schedulerScenario.blockSize} 个位置，足够本例使用。每轮等待前向和采样完成后再开始下一轮，无结束、抢占和新请求到达。</p>`;
+ const phase=currentRound?`第 ${currentRound} 轮执行完成后`:'第 1 轮分配前';
+ const summary=currentRound?`${trace.chosen.map(r=>`${r.id} ${r.kind==='decode'?'Decode':'Prefill'} ${r.n}`).join(' + ')} = ${trace.used}；未用 ${trace.left}`:'A 待算 1；B 输入待算 6；C 输入待算 4。尚未分配，8 个预算槽都可用。';
+ const budget=`<div class="m16-round m16-emphasis"><strong>${currentRound?`第 ${currentRound} 轮：本轮选中的计算位置`:'轮前：还没有选中计算位置'}</strong>${slotCells(currentRound)}<small>${esc(summary)}</small></div>`;
+ const after=currentRound?trace.requests:schedulerScenario.requests;
+ const states=`<div class="m16-table-wrap"><table class="m16-table"><caption>${phase}；computed 只统计已经做完前向的位置</caption><thead><tr><th>请求</th><th>本轮计算</th><th>已完成位置数</th><th>输入还剩</th></tr></thead><tbody>${after.map(r=>{const selected=currentRound?trace.chosen.find(x=>x.id===r.id):null;return `<tr><td>请求 ${r.id}</td><td>${selected?`${selected.kind==='decode'?'Decode':'Prefill'} ${selected.n}`:'尚未分配'}</td><td>${r.computed}</td><td>${Math.max(0,r.prompt-r.computed)} 个输入位置</td></tr>`}).join('')}</tbody></table></div>`;
+ const top=row(box('请求 A / B / C','待算位置与 KV 状态',s===0,'data'),arrow('选位置'),box('Scheduler','每轮预算 8',s>0&&s<4,'ctrl'),arrow('准备张量'),box('Model Runner','执行选中的位置',s===4,'device'));
+ return '<div class="m16-scheduler">'+setup+top+sub(variant===0?'一格 = 本轮一个可计算位置':phase,variant===0?budget:states,'固定教学场景')+
+ `<p class="m16-figure-caption">色块用请求编号区分身份；空格是未用预算，不是 GPU 时间。输入末位置完成后可以采样首个输出；新采样的 Token 在下一轮才做前向并形成自己的 KV。</p></div>`;
 }
 function renderCompiler(s,variant){
  const eager=lanes([['Eager：3 次逐元素计算',[['Mul','t1=x×scale',s===0],['Add','t2=t1+bias',s===0],['ReLU','y=max(t2,0)',s===4]]],['编译融合（可能）',[['Dynamo','捕获可编译图',s===1],['Inductor','分析并融合',s===2],['设备代码','Triton/库等',s===3],['GPU','一次融合 Kernel',s===4]]]]);

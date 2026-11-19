@@ -19,20 +19,26 @@ export const kernelCourses = [
         "总和怎样在树上汇合",
         "[1,2,3,4]怎样从4个输入合成1个结果？",
         "第一层得到3和7，第二层得到10。线段承载具体部分和；加法归约的输出只有一个，不是每个位置都有同样的局部结果。",
-        { formula: true },
+        { formula: true, evidence: {
+          formula: math("<mrow><mi>total</mi><mo>=</mo><mo>(</mo><msub><mi>x</mi><mn>0</mn></msub><mo>+</mo><msub><mi>x</mi><mn>1</mn></msub><mo>)</mo><mo>+</mo><mo>(</mo><msub><mi>x</mi><mn>2</mn></msub><mo>+</mo><msub><mi>x</mi><mn>3</mn></msub><mo>)</mo></mrow>"),
+          derive: ["x0..x3分别为1、2、3、4。", "两条独立分支先求部分和1+2=3与3+4=7。", "最后合并3+7=10，仅输出一个总和；下一章的Scan要保留全部前缀。"],
+        } },
       ),
       page(
         "prefix",
         "每个位置都要一个前缀",
         "为什么总和10不足以恢复全部前缀[1,3,6,10]？",
         "Scan必须保留每个前缀边界。图用逐轮传播展示位置i从合法较早位置取得部分和，不能读取未来位置。",
+        { formula: true },
       ),
       page(
         "boundary",
         "Mask和数值次序",
         "尾部用0填充是否总适用于所有归约？",
         "加法的单位元是0，最大值归约的中性填充通常不同。浮点加法的不同树形还可能改变舍入，必须按正确性标准比较。",
-        { code: true, quiz: true },
+        { code: true, quiz: true, evidence: {
+          code: "valid=[-3,-2]\nwrong=max(valid+[0])\nmasked=max(valid+[float('-inf')])\nassert wrong==0 and masked==-2\n# Mask还必须阻止越界读；填充值只决定合法加载后的归约语义",
+        } },
       ),
     ],
     formula: math(
@@ -145,14 +151,20 @@ export const kernelCourses = [
         "非连续不改变数学对象",
         "把相同K/V换个物理位置，输出应该怎样？",
         "本例q=1，Key=[1,0,2,3]、Value=[2,4,1,3]，从分页或连续读取后做同一Softmax加权，输出应一致。",
-        { formula: true },
+        { formula: true, evidence: {
+          formula: math("<mrow><msub><mi>p</mi><mi>t</mi></msub><mo>=</mo><mfrac><msup><mi>e</mi><mrow><mi>q</mi><msub><mi>K</mi><mi>t</mi></msub><mo>−</mo><mi>m</mi></mrow></msup><mrow><munder><mo>∑</mo><mi>j</mi></munder><msup><mi>e</mi><mrow><mi>q</mi><msub><mi>K</mi><mi>j</mi></msub><mo>−</mo><mi>m</mi></mrow></msup></mrow></mfrac><mo>;</mo><mi>o</mi><mo>=</mo><munder><mo>∑</mo><mi>t</mi></munder><msub><mi>p</mi><mi>t</mi></msub><msub><mi>V</mi><mi>t</mi></msub></mrow>"),
+          derive: ["t/j是有效逻辑位置，q=1；m是有效分数的最大值，用于数值稳定。此处标量头无需额外sqrt(d)缩放。", "长度4时，分数[1,0,2,3]，指数先统一减3，再除以指数和得到概率。", "最终Σp_t V_t约为2.471149。只要块表读回同一组逻辑K/V，换物理块号不会改变结果。"],
+        } },
       ),
       page(
         "tail",
         "不能读入无效尾槽",
         "实际长度3时，P1第二槽里旧数据会不会影响结果？",
-        "只有逻辑位置0..2有效，物理槽中即使残留数值也不能参与。图切换尾长并独立计算直接参考，检查Mask真正作用于分数域。",
-        { quiz: true },
+        "当长度为3时，只有逻辑位置0..2有效，物理槽中即使残留数值也不能参与。切换到长度4可对照尾槽重新参与后的结果；两种长度都独立计算直接参考，检查Mask真正作用于分数域。",
+        { quiz: true, formula: true, evidence: {
+          formula: math("<mrow><msub><mi>s</mi><mi>t</mi></msub><mo>=</mo><mo>{</mo><mtable><mtr><mtd><mi>q</mi><msub><mi>K</mi><mi>t</mi></msub></mtd><mtd><mn>0</mn><mo>≤</mo><mi>t</mi><mo>&lt;</mo><mi>L</mi></mtd></mtr><mtr><mtd><mo>−</mo><mi>∞</mi></mtd><mtd><mtext>无效位置</mtext></mtd></mtr></mtable></mrow>"),
+          derive: ["L是实际上下文长度；物理块容量可以大于L。", "L=3只允许t=0、1、2参与，尾槽t=3的分数按Mask排除，其概率为0。", "对有效Key=[1,0,2]、Value=[2,4,1]归一化，输出约1.514820；不能仍用长度4的分母。"],
+        } },
       ),
     ],
     formula: math(
@@ -261,7 +273,7 @@ export const kernelCourses = [
         "rows",
         "不同请求不能混着归一",
         "两条请求的词表行，为什么不能共用同一个总和？",
-        "图分开画每行概率及CDF。每条请求的分布总和各为1；跨行求一个分母会把请求混成一个不存在的联合候选集合。",
+        "图分开画两行已归一的概率。每条请求的分布总和各为1；跨行再除以共同总和会让每行只剩0.5。下一章再将一行概率变成CDF，按随机数选词。",
       ),
       page(
         "cdf",

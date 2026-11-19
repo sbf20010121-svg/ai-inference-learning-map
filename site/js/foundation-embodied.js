@@ -20,7 +20,7 @@ export const embodiedCourses = [
         "time",
         "收到的最新帧是否同一时刻",
         "相机t=80ms、关节t=100ms，能否直接称为t=100ms同步观测？",
-        "图分别标采集、到达和推理时间。20ms差值是观测不对齐，不是模型推理延迟；可以按策略配对、插值或拒绝，但要保留假设。",
+        "图标出采集和组合使用时刻：相机80ms、关节100ms，在120ms组合时相机已旧40ms。20ms采集差是观测不对齐，不是推理延迟；传输到达时间此图未模拟。配对、插值或拒绝都要有明确策略。",
       ),
       page(
         "frame",
@@ -67,7 +67,6 @@ export const embodiedCourses = [
         "observation-contract",
         "相对动作的锚点属于指定时刻和坐标系，解码时任意换锚点会改变目标。",
       ],
-      ["vla-policy", "动作块是多步向量，不只是一个模型调用结果。"],
     ],
     source: "robot",
     section:
@@ -80,7 +79,10 @@ export const embodiedCourses = [
         "相对谁计算",
         "目标[10,11,12]、固定锚点10，相对轨迹为何是[0,1,2]？",
         "每个未来目标都减同一个锚点10。若采用逐步差分则可能得到[0,1,1]，两种数组不能用同一种解码方式解释。",
-        { formula: true },
+        { formula: true, evidence: {
+          formula: math("<mrow><msub><mi>a</mi><mi>relative</mi></msub><mo>=</mo><msub><mi>a</mi><mi>absolute</mi></msub><mo>−</mo><mi>anchor</mi><mo>;</mo><msub><mi>a</mi><mi>absolute</mi></msub><mo>=</mo><mi>anchor</mi><mo>+</mo><msub><mi>a</mi><mi>relative</mi></msub></mrow>"),
+          derive: ["三个目标都减同一个锚点10，得到[0,1,2]。", "若编码逐步增量，需相邻目标相减，得到[0,1,1]。", "将固定锚点相对量错当增量累加，会得到[10,11,13]，末项不再是12。"],
+        } },
       ),
       page(
         "normalize",
@@ -94,7 +96,12 @@ export const embodiedCourses = [
         "返回时锚点已经变了怎么办",
         "推理基于旧状态10，返回时状态11，能否悄悄改用11解码？",
         "会改变目标轨迹。是否重新锚定需要策略训练和执行约定支持，不能把“相对动作”自动理解为可随意绑定最新状态。",
-        { quiz: true },
+        { quiz: true, evidence: {
+          question: "相对轨迹[0,1,2]来自锚点10，返回时机器人在11。未经模型约定直接加11会怎样？",
+          options: ["恢复原目标[10,11,12]", "得到[11,12,13]，目标整体改变", "只改变推理时延，不改变目标"],
+          correct: 1,
+          explain: "相对值依赖编码时选定的参考状态；重新锚定是轨迹语义的改变，必须有策略和执行约定支持。",
+        } },
       ),
     ],
     formula: math(
@@ -127,7 +134,6 @@ export const embodiedCourses = [
         "action-representation",
         "不同策略家族可以产生同Shape但不同表示的动作，比较前需固定解码语义。",
       ],
-      ["vla-policy", "Flow动作生成与控制队列是可组合但不同的部分。"],
     ],
     source: "act",
     section:
@@ -146,14 +152,16 @@ export const embodiedCourses = [
         "重叠预测怎样对齐",
         "两次Chunk都预测执行时刻t=3，怎样比较或融合？",
         "按绝对执行时刻对齐同一动作位置，再按方法规定融合。直接把两个数组按相同下标平均，可能混合不同的未来时刻。",
-        { formula: true, quiz: true },
+        { formula: true, quiz: true, code: true },
       ),
       page(
         "quality",
         "减少调用时还要看什么",
         "迭代步数减半，能否只报告前向次数下降？",
         "需要同时核对任务表现、动作误差、反应延迟及总时间。模型训练方式、推理求解器与控制消费之间不能直接互相替代。",
-        { code: true },
+        { evidence: {
+          limit: "图只比较调用依赖。各次调用成本可能不同；减少迭代数可能改变输出分布，需要任务成功率、动作误差和总时长共同核验。",
+        } },
       ),
     ],
     formula: math(
@@ -242,7 +250,6 @@ export const embodiedCourses = [
     goal: "区分模型提出的动作、控制端实际消费和环境反馈，解释开环误差如何积累。",
     why: "更快生成不自动等于更好的控制；观测年龄、动作有效时刻和重规划决定反应能力。",
     prereqs: [
-      ["vla-policy", "异步队列能减少等待，但不保证返回动作仍适合当前环境。"],
       [
         "action-representation",
         "闭环反馈改变控制输入，但动作仍须按训练约定的基准、单位和归一化解释。",
@@ -258,7 +265,7 @@ export const embodiedCourses = [
         "disturb",
         "干扰发生后动作还合适吗",
         "目标3，已规划每步+1，中途多移动1以后会怎样？",
-        "开环继续预定动作会超过目标；闭环使用新观测可改变后续命令。图把真实状态、期望轨迹和观测时刻分别标出。",
+        "开环继续预定动作会超过目标；闭环使用新观测可改变后续命令。曲线画出目标位置与两种方案的真实位置，表格逐步列出命令、干扰和执行结果。切到晚一拍反馈，检查修正为何来不及。",
         { formula: true },
       ),
       page(
@@ -320,7 +327,7 @@ export const embodiedCourses = [
         "distributions",
         "先验怎样向后验学习",
         "前向KL数值相同，Stop-gradient为何仍有意义？",
-        "后验看到了当前观测，先验只看h。固定一侧梯度会改变哪些参数被推动，而不改变这次前向概率或KL数值。图分别显示数值与允许更新的分支。",
+        "后验看到了当前观测，先验只看h。先单独看未裁剪的原始KL：Stop-gradient保持前向数值，却切断指定分支的梯度。图再对照Dreamer的free-bits下界：本例KL约0.193 nat，小于1 nat；若使用max(1,KL)，这一项会被裁为常数1，不能说此时一定发生参数更新。",
         { formula: true },
       ),
       page(
@@ -337,7 +344,7 @@ export const embodiedCourses = [
     derive: [
       "教学先验p=[0.5,0.5]，观测后验q=[0.8,0.2]。",
       "KL=0.8ln1.6+0.2ln0.4≈0.1927 nat。",
-      "Stop-gradient不会把q改成另一组数；它限制反向更新路径。真实Dreamer还包含损失平衡、free bits等规定。",
+      "Stop-gradient不改变q或原始KL，只改变反向路径。本例KL低于DreamerV3的1 nat下界；完整损失max(1,KL)此处为常数1，该KL项不再推动更新。图隔离的是未经裁剪时的职责，未运行训练。",
     ],
     code: "from math import log\np=[.5,.5]; q=[.8,.2]\nkl=sum(a*log(a/b) for a,b in zip(q,p))\nassert abs(kl-.192744757)<1e-8\n# 这里只求前向KL，不伪造训练结果",
     quiz: [
@@ -380,7 +387,7 @@ export const embodiedCourses = [
       page(
         "axes",
         "帧时间与生成步数分开",
-        "4帧、每帧4Patch、3个生成步，需要怎样理解网络调用？",
+        "4帧、每帧4Patch、4个生成步，需要怎样理解网络调用？",
         "每个生成步可处理整段16个视频Token，并在定义的时空连接中交换信息；不是自动逐帧自回归3次。实际架构可采用其它分解和缓存。",
       ),
       page(
@@ -388,7 +395,12 @@ export const embodiedCourses = [
         "减少步数的验证边界",
         "迭代从4变2，是否已经证明视频预测或规划更好？",
         "要检查生成质量、时序一致性、条件遵循和下游任务。前向调用数减少只说明工作组织改变，不能替代质量与真实成本测量。",
-        { quiz: true },
+        { quiz: true, evidence: {
+          question: "同样处理16个视频Token，生成步从4减到2，已经能确认哪件事？",
+          options: ["质量和规划成功率都必然提高", "该例网络调用次数减半，质量与真实总时长仍需核对", "物理视频时长也自动减半"],
+          correct: 1,
+          explain: "生成步骤数、视频内容时间和GPU耗时是不同量。减少调用可能改变生成结果，不能自动换算任务或时延收益。",
+        } },
       ),
     ],
     formula: math(

@@ -12,6 +12,7 @@ import {
   courseLabel,
 } from "./curriculum-view.js";
 import { courseNotes } from "./course-notes.js";
+import { chapterArcFor } from "./chapter-arc.js";
 import {
   chaptersFor,
   chapterById,
@@ -21,6 +22,7 @@ import { renderMechanism, defaultLab, esc } from "./mechanism-visuals.js";
 import { renderCodeTour } from "./code-tour-view.js";
 import { chapterEvidence, figureTerms } from "./chapter-evidence.js";
 import { curatedRelations, RELATION_TYPES } from "./semantic-graph.js";
+import { learningIntroduction, learningContents } from "./teaching-reader.js";
 import {
   normalizeReaderRecord as legacyNormalize,
   getReaderCounts,
@@ -103,13 +105,13 @@ const chapterTerms = {
   "robot-async": ["latency", "trigger", "Action Chunk"],
   "warp-sets": ["Active", "Eligible", "Issued"],
 };
-function vocabulary(n, ch) {
+function vocabulary(n, ch, arc, evidence) {
   const keys = ch.terms || chapterTerms[ch.figure];
   const defs =
-    (ch.figure.startsWith("foundation/") ? n.terms : null) ||
+    evidence.terms || arc?.terms ||
     figureTerms[ch.figure] ||
-    (keys ? n.terms.filter(([k]) => keys.includes(k)) : n.terms.slice(0, 3));
-  return `<dl class="mechanism-vocabulary">${defs.map(([term, meaning]) => `<div><dt>${esc(term)}</dt><dd>${esc(meaning)}</dd></div>`).join("")}</dl>`;
+    (keys ? n.terms.filter(([k]) => keys.includes(k)) : ch.figure.startsWith("foundation/") ? n.terms : n.terms.slice(0, 3));
+  return `<dl class="mechanism-vocabulary${arc ? " chapter-first-terms" : ""}" aria-label="本章图示中的对象与符号">${defs.map(([term, meaning]) => `<div><dt>${esc(term)}</dt><dd>${esc(meaning)}</dd></div>`).join("")}</dl>`;
 }
 function testQuestion(n, choice) {
   const done = Number.isInteger(choice);
@@ -131,24 +133,28 @@ export function renderFocusReader(t, rec = {}, settings = {}) {
       ),
     ch = chapterById(t.id, id),
     idx = chapters.indexOf(ch),
-    n = courseNotes[t.id] || foundationById.get(t.id)?.notes,
+    notes = courseNotes[t.id] || foundationById.get(t.id)?.notes,
     progress = chapterProgress(t, rec),
     lab = { ...defaultLab(), ...(settings.lab || {}) };
-  const evidence = chapterEvidence[`${t.id}/${ch.id}`] || ch.evidence || {};
+  const evidence = { ...(ch.evidence || {}), ...(chapterEvidence[`${t.id}/${ch.id}`] || {}) };
+  // Formulas, worked steps and questions must refer to this chapter's object.
+  const n = { ...notes, ...evidence };
+  const arc = chapterArcFor(t.id, ch.id);
   const relations = curatedRelations.filter(
     (r) => r.from === t.id || r.to === t.id,
   );
   const code = ch.code
     ? `<details class="mechanism-code"><summary>对照此机制的执行骨架与张量边界</summary><p>下段为原创教学伪代码，保留数学依赖；函数名不是框架API或真实设备指令。</p><pre><code>${esc(evidence.code || n.code)}</code></pre>${t.id === "linear-state" ? "<p>实际FLA还包含投影、状态布局和Chunk内部变换。此处矩阵朝向统一为Key×Value；对照源码需核对STATE_V_FIRST。</p>" : ""}<details><summary>${foundationById.has(t.id) ? "核对本课实现边界" : "核对原有逐阶段实现导读"}</summary>${foundationById.has(t.id) ? "<p>本课执行骨架与上方数值对象对应；来源用于核验，不声称已完成真实项目逐行或GPU审计。</p>" : renderCodeTour(t, settings.sourceIndex || 0)}</details></details>`
     : "";
-  return `<article class="focus-reader mechanism-reader" id="focusReader">${courseOrientation(t)}<div class="mechanism-utility"><button type="button" data-dmap>← 知识地图</button>${catalog(t, settings.records || {})}<details class="mechanism-record"><summary>笔记与学习状态</summary><p>你的自评：<strong>${status(rec)}</strong>。浏览、答题与课程证据质量分别记录。</p><div class="mechanism-record-actions"><button type="button" data-f-mark="known">自评已掌握</button><button type="button" data-f-mark="review">仍需验证</button></div><label for="focusNote">本专题笔记与反馈</label><textarea id="focusNote" maxlength="2500" placeholder="记录疑问、推导或验证证据">${esc(rec.note || "")}</textarea><p>旧进度与笔记保留。新版章节浏览另行记录，旧“已掌握”不自动变更。</p></details></div>
- <header class="mechanism-course-heading"><p>${esc(depthModules.find((m) => m.id === t.module)?.name)} / ${esc(t.title)}</p><h1>${esc(courseLabel(t))}</h1><p>${esc(n.objective)}</p>${foundationById.has(t.id) ? `<p class="course-cause">${esc(n.reason)}</p>` : ""}<span>本次章节浏览 ${progress.seen.length}/${progress.total} · ${status(rec)}</span></header>
- <div class="mechanism-course-layout"><nav class="mechanism-chapters" aria-label="${esc(t.title)}的机制章节">${chapters.map((c, i) => `<button type="button" data-mech-chapter="${c.id}" aria-current="${id === c.id ? "step" : "false"}"><small>${progress.seen.includes(c.id) ? "✓" : String(i + 1).padStart(2, "0")}</small><span>${esc(c.title)}</span></button>`).join("")}</nav>
- <section class="mechanism-chapter" id="focusPanel" aria-labelledby="mechanismQuestion"><p class="mechanism-position">${idx + 1} / ${chapters.length} · ${esc(ch.title)}</p><h2 id="mechanismQuestion" tabindex="-1">${esc(ch.question)}</h2><p class="mechanism-intro">${esc(ch.explain)}</p><div class="mechanism-lab" data-mechanism="${esc(ch.figure)}">${renderMechanism(ch.figure, lab)}</div>${vocabulary(n, ch)}
+  return `<article class="focus-reader mechanism-reader learning-reader" id="focusReader">${courseOrientation(t)}<div class="mechanism-utility"><button type="button" data-dmap>← 知识地图</button>${catalog(t, settings.records || {})}<details class="mechanism-record" id="learningRecord"><summary>笔记与学习状态</summary><p>你的自评：<strong>${status(rec)}</strong>。浏览与掌握分别记录。</p><div class="mechanism-record-actions"><button type="button" data-f-mark="known">自评已掌握</button><button type="button" data-f-mark="review">仍需验证</button></div><label for="focusNote">本专题笔记与反馈</label><textarea id="focusNote" maxlength="2500" placeholder="记录疑问、推导或验证证据">${esc(rec.note || "")}</textarea><p>已有笔记与自评保留，阅读正文不会自动标为掌握。</p></details></div>
+ <header class="mechanism-course-heading learning-course-heading" id="learningCourseStart"><p>${esc(depthModules.find((m) => m.id === t.module)?.name)} / ${esc(t.title)}</p><h1 tabindex="-1">${esc(courseLabel(t))}</h1><span>已定位或浏览 ${progress.seen.length}/${progress.total} 节 · ${status(rec)}</span>${learningIntroduction(t.id)}</header>
+ ${learningContents(t, chapters, id, progress)}
+ <details class="course-experiment" id="optionalMechanism" ${settings.openExperiment ? "open" : ""}><summary>可选：计算示例、执行骨架与自检 · ${esc(ch.title)}</summary><p class="course-experiment-intro">这里提供相关的独立简化示例。请按示例标出的输入、初态和假设核对，它不自动沿用正文算例的数值，也不代表真实系统的全部行为。</p>
+ <section class="mechanism-chapter" id="focusPanel" aria-labelledby="experimentQuestion"><p class="mechanism-position">${idx + 1} / ${chapters.length} · ${esc(ch.title)}</p><h2 id="experimentQuestion" tabindex="-1">${esc(ch.question)}</h2>${arc ? `<p class="chapter-opening">${esc(arc.opening)}</p>` : ""}${vocabulary(n, ch, arc, evidence)}<div class="mechanism-lab" data-mechanism="${esc(ch.figure)}">${renderMechanism(ch.figure, lab)}</div><p class="mechanism-intro">${esc(ch.explain)}</p>
  ${ch.formula || ch.chunkMath ? `<details class="mechanism-math" ${ch.chunkMath ? "open" : ""}><summary>把图中关系写成公式</summary><div class="course-math">${ch.chunkMath ? chunkFormula : n.formula}</div>${ch.chunkMath ? "<p>A是固定输入后的状态线性变换，B是新写入项；下标1/2是Token时间次序，矩阵相乘不能一般性交换。</p>" : `<ol>${n.derive.map((x) => `<li>${esc(x)}</li>`).join("")}</ol>`}</details>` : ""}
  ${code}${ch.quiz ? testQuestion(n, settings.answer) : ""}
- <details class="mechanism-source"><summary>本章的依据、适用边界与尚未验证项</summary><p>${esc(evidence.section || n.section)}</p><a href="${esc(evidence.source || n.source)}" target="_blank" rel="noopener">核对一手资料 ↗</a><p>${esc(n.limit)}</p><p>图中数值为可核对教学模型；没有声称完成真实GPU性能、机器人试验或全部源码分支审计。</p></details>
- <footer class="mechanism-chapter-footer"><button type="button" data-mech-prev ${idx === 0 ? "disabled" : ""}>← ${idx === 0 ? "开篇" : esc(chapters[idx - 1].title)}</button><button type="button" data-mech-next ${idx === chapters.length - 1 ? "disabled" : ""}>${idx === chapters.length - 1 ? "本专题章节结束" : esc(chapters[idx + 1].title) + " →"}</button></footer></section></div>
+ ${arc ? `<section class="chapter-closing"><div><span>本章结论</span><p>${esc(arc.takeaway)}</p></div><div><span>${idx < chapters.length - 1 ? `下一章：${esc(chapters[idx + 1].title)}` : "接回系统"}</span><p>${esc(arc.bridge)}</p></div></section>` : ""}<details class="mechanism-source"><summary>本章的依据、适用边界与尚未验证项</summary><p>${esc(evidence.section || n.section)}</p><a href="${esc(evidence.source || n.source)}" target="_blank" rel="noopener">核对一手资料 ↗</a><p>${esc(n.limit)}</p><p>图中数值为可核对教学模型；没有声称完成真实GPU性能、机器人试验或全部源码分支审计。</p></details>
+ </section></details>
  ${unitContinuation(t)}<section class="mechanism-connections"><h2>把这项机制接回系统</h2>${relations
    .map((r) => {
      const other = r.from === t.id ? r.to : r.from;
