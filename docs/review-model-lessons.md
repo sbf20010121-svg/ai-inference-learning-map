@@ -81,11 +81,11 @@
 | mla-kv / position | 重做：内容项4不变，位置项1/0/−1使总分5/4/3；局部结合律不能删除位置分支。 |
 | mla-kv / tradeoff | 核对：Value、多头、潜维、位置维与真实布局未由内容小例覆盖；压缩字节不直接推出时延。 |
 | linear-state / state | 核对：Key行×Value列的关联状态，qᵀS不是恢复历史Token列表。 |
-| linear-state / write | 核对：外积沿Key分量分配残差；混合Key会同时改多行。 |
-| linear-state / correction | 修改首用说明：β=1完整纠正需要单位Key，重复与非正交Key的干扰分别核对。 |
+| linear-state / write | 核对外积沿Key分量分配残差；截图展开复核后修正公式朝向：S为K×V，k/v为列向量，δ=v−Mᵀk，写入βkδᵀ。 |
+| linear-state / correction | 修改首用说明：β=1完整纠正需要单位Key；补正预测、残差与执行骨架的列向量约定，数值结果未改。 |
 | linear-state / gate | 核对：先衰减旧状态，再用衰减后的矩阵预测与纠错；不能只缩小新写入。 |
 | linear-state / chunk | 核对：两步组合A₂A₁S+A₂B₁+B₂满足结合但不可任意交换时间顺序。 |
-| linear-state / triangle | 修改D定义：D已乘β；γ=1、S0=0下三角前代解与逐Token状态一致。 |
+| linear-state / triangle | 修改D定义：第i行为βᵢδᵢᵀ，K/V每行为kᵢᵀ/vᵢᵀ；γ=1、S0=0下三角前代解与逐Token状态一致。 |
 | linear-state / kernel | 核对：Recurrent/Chunk的依赖与Tile对象，WY不等于消除依赖，教学仿射矩阵不冒充生产Kernel。 |
 | linear-state / cost | 核对：固定K×V仍有状态流量/驻留、投影、提交和依赖成本；无硬件性能结论。 |
 | linear-state / diagnosis | 修改不变量：S新=γS旧+写入，避免有门时漏衰减；判断题保留独立复算路径。 |
@@ -115,6 +115,20 @@
 ```
 
 运行 `node --test tests/model-lesson-review.test.mjs tests/curriculum-system.test.mjs tests/focus-reader.test.mjs tests/mechanism-chapters.test.mjs`，39 项通过、0 失败。全站浏览器、手机布局、数据往返和最终集成结果另由总验收记录给出；此处不把Node测试等同于已看过浏览器截图。
+
+### 展开公式后的复核补正（2026-11-19）
+
+实际查看 `audit-9f0edef` 的桌面及360像素宽度展开截图后，发现旧课程公式把列目标 `v` 与行预测 `kᵀM` 相减，又对残差整体转置，维度不一致。此前折叠截图和数值测试均不足以发现这一表达错误，原“核对”记录不能代替公式展开复核。
+
+现统一为 `S、M: K×V`，`k、q: K×1`，`v、δ: V×1`：
+
+`M_t=γS_{t−1}`；`δ_t=v_t−M_tᵀk_t`；`S_t=M_t+βk_tδ_tᵀ`。
+
+等价行残差为 `δᵀ=vᵀ−kᵀM`，列输出为 `o=Sᵀq`，原图的 `qᵀS` 明确表示行输出 `oᵀ`。块内矩阵把每个列向量转置后堆成行，`D[i,:]=βᵢδᵢᵀ`，所以 `(I+L)D=βV` 与 `S=KᵀD` 的维度继续成立。
+
+修正覆盖当前 `course-notes.js` 的MathML、变量定义和伪代码，`chapter-arc.js` 的首用术语，`mechanism-source.js` / `chapter-evidence.js` 的复用骨架，以及当前和旧阅读器的预测/残差标签。检索发现旧研究页及研究说明仍保留同一错误，已同步更正其公式与标签；`research-models.js` 只改文件头说明，所有数值函数、数据和结果均未修改。一维数组保存的是向量分量，`rowvec(k,M)` 与列预测 `Mᵀk` 的分量相同，无须改变数值实现。
+
+运行现有 `research-labs`、`research-links`、`course-models`、`mechanism-chapters`、`focus-reader`、`chapter-arc`、`model-lesson-review` 七组测试，共39项通过、0失败。旧错误残差表达已检索清除。新三行MathML的最终截图及复核结果以[PR #6 的最终提交复验](https://github.com/sbf20010121-svg/ai-inference-learning-map/pull/6)为准，不把修改前截图当作修改后证据。
 
 ## 依据与范围
 

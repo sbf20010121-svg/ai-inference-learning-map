@@ -614,11 +614,17 @@ export const courseNotes = {
   ),
   "linear-state": d(
     "Gated DeltaNet用可更新的Key–Value关联矩阵保存状态；门控衰减旧信息，再依据当前Key的预测误差纠错写入。它不是所有线性注意力的统一公式。",
-    "S|状态矩阵，Key维×Value维;k / v / q|写入键/目标值/读取查询;γ|旧状态保留系数;β|写入强度;δ|目标减预测的残差;Chunk|一段位置的组合更新",
-    "先M=γS，再用kᵀM预测旧值，残差v−kᵀM只纠正该Key方向。直接写入kvᵀ会继续累积旧关联。固定输入后每步可写成仿射变换AS+B，组合满足结合律，这是分块的数学入口；真实高效Chunk还涉及块内三角结构、WY表示和布局，并非直接构造巨大A矩阵。",
+    "S|状态矩阵，K×V；行是Key维、列是Value维;M|衰减后的旧状态γS，仍为K×V;k / v / q|写入键/目标值/查询；均为列向量，形状依次K×1、V×1、K×1;γ|旧状态保留系数，标量;β|写入强度，标量;δ|残差列向量v−Mᵀk，形状V×1;Chunk|一段位置的组合更新",
+    "本课固定S为Key维×Value维，k、v、q为列向量。先M=γS，再用Mᵀk得到V维列预测，残差δ=v−Mᵀk与v同形状；kδᵀ才得到与S同形状的写入矩阵。直接写入kvᵀ会继续累积旧关联。固定输入后每步可写成仿射变换AS+B，组合满足结合律，这是分块的数学入口；真实高效Chunk还涉及块内三角结构、WY表示和布局，并非直接构造巨大A矩阵。",
     eq(
+      "<msub><mi>M</mi><mi>t</mi></msub>",
+      "<mrow><mi>γ</mi><msub><mi>S</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></mrow>",
+    ) + eq(
+      "<msub><mi>δ</mi><mi>t</mi></msub>",
+      "<mrow><msub><mi>v</mi><mi>t</mi></msub><mo>−</mo><msubsup><mi>M</mi><mi>t</mi><mi>T</mi></msubsup><msub><mi>k</mi><mi>t</mi></msub></mrow>",
+    ) + eq(
       "<msub><mi>S</mi><mi>t</mi></msub>",
-      "<mrow><mi>γ</mi><msub><mi>S</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><mi>βk</mi><msup><mrow><mo>(</mo><mi>v</mi><mo>−</mo><msup><mi>k</mi><mi>T</mi></msup><mi>γS</mi><mo>)</mo></mrow><mi>T</mi></msup></mrow>",
+      "<mrow><msub><mi>M</mi><mi>t</mi></msub><mo>+</mo><mi>β</mi><msub><mi>k</mi><mi>t</mi></msub><msubsup><mi>δ</mi><mi>t</mi><mi>T</mi></msubsup></mrow>",
     ),
     [
       "S₀=0，k₁=[1,0]、v₁=[2,1]、β=0.5、γ=1：第一行写成[1,0.5]。",
@@ -627,7 +633,7 @@ export const courseNotes = {
     ],
     "https://github.com/fla-org/flash-linear-attention/blob/98193113ecb7835143252a786e06933e371b67cc/fla/ops/gated_delta_rule/fused_recurrent.py",
     "固定提交：标量门控路径的衰减、残差、外积写入；维度朝向依STATE_V_FIRST",
-    "M = gamma * S\nprediction = k.T @ M\ndelta = v - prediction\nS = M + beta * outer(k, delta)\no = q.T @ S\n# A=gamma*(I-beta*k*k.T), B=beta*k*v.T\n# 组合: (A2*A1, A2*B1+B2)",
+    "# S: [K,V]；k/q: [K,1]；v/delta: [V,1]，均按列向量约定\nM = gamma * S\nprediction = M.T @ k\ndelta = v - prediction\nS = M + beta * (k @ delta.T)\no = S.T @ q  # [V,1]；图中可把分量横排显示\n# A=gamma*(I-beta*(k@k.T)), B=beta*(k@v.T)\n# 组合: (A2@A1, A2@B1+B2)",
     "相同单位Key重复写目标v，β=1、γ=1时，纠错更新与直接累加有何不同？",
     [
       "纠错会把该Key预测改为新v；累加会保留旧值再加新值",

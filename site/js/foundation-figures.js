@@ -1,6 +1,7 @@
 import * as N from "./foundation-numerics.js";
 import { ssaAssignments, fusionRounding, engineInvocation } from "./compiler-kernel-models.js";
 import { requestLifecycle, asyncRounds, quantizedExecution, ringTopology, quotaRound } from "./engine-system-models.js";
+import { engineSystemRecordTable, engineSystemWideFigure } from "./engine-system-visuals.js";
 const e = (s = "") =>
   String(s).replace(
     /[&<>"']/g,
@@ -1284,7 +1285,7 @@ function renderEngineFoundation(id, view, s) {
       if (view === "finish" || view === "cancel") {
         const d = requestLifecycle(!!c, step);
         return frame(
-          table(["物理块", "仍持有请求", "引用数", "可复用"], d.blocks.map((b) => [b.id, b.owners.join(" / ") || "无", b.refs, b.reusable ? "是" : "否"])) +
+          engineSystemRecordTable(["物理块", "仍持有请求", "引用数", "可复用"], d.blocks.map((b) => [b.id, b.owners.join(" / ") || "无", b.refs, b.reusable ? "是" : "否"])) +
             metrics([
               ["当前事件", d.event],
               ["A控制状态", d.state],
@@ -1560,14 +1561,15 @@ function renderEngineFoundation(id, view, s) {
         );
       }
       return frame(
-        timeline(
+        engineSystemWideFigure(timeline(
           [
             ["CPU独立准备", cpu],
             ["GPU实际执行", gpu],
           ],
           18,
           "教学节拍",
-        ) +
+          [0, 2, 4, 6, 8, 10, 12, 14, 16, 18],
+        ), "CPU与GPU时间线，可左右滚动", "左右滑动查看0–18拍完整时间线；两条泳道共用同一刻度，CPU准备2拍、GPU执行4拍。") +
           metrics([
             ["3轮完成边界", d.total],
             ["未知输出可否直接读取", "不可以，下一轮使用真实值前仍要等待"],
@@ -1827,7 +1829,7 @@ function renderKernelFoundation(id, view, s) {
       );
     }
     case "paged-attention-kernel": {
-      const length = view === "tail" && c ? 3 : 4,
+      const length = view === "tail" ? (c ? 4 : 3) : 4,
         d = N.pagedRead(length, view === "tail" ? true : !c);
       return frame(
         table(
@@ -1857,8 +1859,8 @@ function renderKernelFoundation(id, view, s) {
           view === "tail" ? "合法上下文长度" : "物理分配",
           view === "tail"
             ? [
-                [0, "长度4"],
-                [1, "长度3"],
+                [0, "长度3"],
+                [1, "长度4"],
               ]
             : [
                 [0, "P3/P1"],

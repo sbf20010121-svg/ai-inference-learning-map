@@ -12,6 +12,8 @@
 4. **抽象边界缺少可算反例。** 新增中间舍入被错误删除导致 `0→0.4` 的反例、采样等待计数减少但比例 `40%→80%` 的分母反例、配置遗漏尾部 Mask 导致 8 个越界写的反例。
 5. **对象跟踪不完整。** GEMM Tile 图现在高亮整个输入行带/列带，并允许切换到其它输出 Tile；分页尾部明确显示仍有物理内容但本次被 Mask 排除、概率为 0 的位置。地址例子纠正了“槽 5”与“第 6 个元素”的混淆；Layout 来源说明纠正为两 Lane 四元素。
 6. **承接文案走错下一章。** 编译导论 `target` 章现在承接实际下一章 `tradeoff` 的融合反例与证据核验，不再预告不存在的缓存章。
+7. **截图复核补齐可读、可复算的输入。** 编译缓存图保留冷调用 `100+1+4=105 ms`、有效命中 `1+4=5 ms` 的相同比例，改用六个清晰刻度，并在表中完整列出太短而无法容纳文字的提交/执行阶段。在线 Softmax 分块图补出 `V=[2,4,−1,5]`，使本章的分子 `a` 与输出 `o` 可以就地复算。
+8. **默认状态必须回答当前章题。** 20 张桌面/手机截图复核发现分页 Attention 的 `tail` 章问长度 3，初始图却选长度 4。现在默认长度 3，尾槽概率为 0、输出约 1.5148；保留长度 4 的 2.4711 对照。正文改成“当长度为3时”的条件句，避免用户切换后仍读到无条件的三位置结论。
 
 ## 全部 94 章的审查记录
 
@@ -36,7 +38,7 @@
 | `convolution-lowering` | `window`、`stride`、`im2col` | 窗口章改为真实窗口乘加公式，(1,1) 的 [5,6,9,10] 与 [1,0,0,1] 得 15；尺寸公式放到 Stride 章；im2col 骨架现在组织所有窗口行，并说明实际可不物化。 |
 | `reduction-scan` | `tree`、`prefix`、`boundary` | 总和章公式对应 (1+2)+(3+4)=10；前缀章才展示 [1,3,6,10] 的 Scan 公式；边界章代码与全负 max 的 0/−∞ 反例一致。保留逐轮快照语义。 |
 | `gather-scatter` | `gather`、`scatter`、`inverse` | Gather [2,0,2] 保留重复读取；Scatter-add [1,0,1] 合并两条贡献；有重复/缺失不能构造逆排列。核对输出与原子性边界后保留。 |
-| `paged-attention-kernel` | `read`、`compute`、`tail` | 读取章聚焦逻辑→物理→K/V；计算章改为 Softmax 加权式及独立值 2.471149；尾长 3 改用排除式及输出 1.514820，明确物理尾槽仍有值而权重必须为 0。 |
+| `paged-attention-kernel` | `read`、`compute`、`tail` | 读取章聚焦逻辑→物理→K/V；计算章改为 Softmax 加权式及独立值 2.471149；尾长 3 改用排除式及输出 1.514820，明确物理尾槽仍有值而权重必须为 0。截图复核后让 `tail` 初始状态使用章题指定的长度 3，保留长度 4 切换对照；正文明确长度条件。 |
 | `quantized-matmul` | `groups`、`dot`、`backend` | 分组码 [2,−1,3,2] 与 Scale [.5,.25] 得点积 1.75；错误平均 Scale 得 2.25；融合反量化不删除 Scale 的读取和应用。保留无 zero-point 的明确范围。 |
 | `sampling-kernel` | `rows`、`cdf`、`parity` | 修正首章“同时展示 CDF”的错误描述，当前只比较各行概率和；CDF 章 [0.6,.85,.95,1] 用 u=.75 选词 1；Greedy 改变分布而非等价加速。 |
 | `kernel-tuning` | `coverage`、`resources`、`experiment` | BM 2→4 时 Program 6→4、槽 24→32；每Program累加器不等于每线程寄存器。实验章新表直接展示遗漏 Mask 的 8 个越界写，正确性不通过不得进入计时排名。 |
@@ -58,8 +60,9 @@
 
 ## 本组已运行验证
 
-- `node --test tests/compiler-kernel-review.test.mjs`：8 项通过。包含独立 RMSNorm 参考、分页注意力直接指数加权、相同 Engine 接口的新输入、显式舍入反例、章级公式/测验覆盖和可达的其它 GEMM Tile。
+- `node --test tests/compiler-kernel-review.test.mjs`：8 项通过。包含独立 RMSNorm 参考、分页注意力直接指数加权、相同 Engine 接口的新输入、显式舍入反例、章级公式/测验覆盖和可达的其它 GEMM Tile。分页渲染回归同时检查默认选中长度 3、输出 1.5148、尾槽被排除，以及切到长度 4 后输出 2.4711、四槽都有效。
 - `node --test tests/curriculum-system.test.mjs tests/mechanism-chapters.test.mjs`：27 项通过。包含所有基础课程渲染及既有数学不变量。
-- 本组启动隔离 Chromium 时运行环境返回 `socket() failed: Operation not permitted`，因此**本组未将截图或浏览器通过记为完成**。全站集成验收报告另行记录实际可用环境中的浏览器结果，不沿用历史结果。
+- 本地启动隔离 Chromium 时运行环境返回 `socket() failed: Operation not permitted`；浏览器运行由远端 CI 完成。本组随后实际读取 `audit-2bed8bc/results/` 中 10 个路由各 1365/360 宽度的 20 张截图：`compiler-lowering-ir`、`ir-ssa-values`、`fusion-legality-precision`、`buffer-liveness-bufferize`、`engine-build-runtime`、`fused-norm-fusion`、`paged-attention-kernel-compute`、`paged-attention-kernel-tail`、`profiling-evidence`、`convolution-lowering-window`。发现并修正上面的尾长初始状态问题；这 20 张是修正前证据；修后图形以[PR #6 的最终提交复验](https://github.com/sbf20010121-svg/ai-inference-learning-map/pull/6)截图为准，不沿用为修后截图。
+- 本组另已实际检查 `audit-9f0edef/results/` 的编译缓存、在线 Softmax 重缩放及 1365/360 四行 MathML 展开截图。刻度与各阶段时间可读，V 值可见；四行公式的指数、分数及推导段落没有裁切。手机宽表逐项核查可发现性：Paged 的 K/V、权重和输出另有可见矩阵/正文，Profiling 的两组比例和判断在正文完整呈现，精度反例的两个结果在正文可读。
 
 以上证明限定数学对象和本次调用中的渲染回归；不把浏览过页面、自动测试通过或有来源链接当作已证明学习效果。

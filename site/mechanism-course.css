@@ -1104,3 +1104,96 @@
 .course-purpose{font-size:14px;line-height:1.8;color:var(--muted)}
 .course-purpose summary{cursor:pointer;color:var(--primary)}
 .course-purpose p{margin-top:8px}
+
+/* These execution figures keep short records readable without hiding fields on phones. */
+.es-record-list {
+  display: none;
+}
+.es-wide-figure {
+  min-width: 0;
+  max-width: 100%;
+}
+.es-scroll-hint {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.es-wide-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+}
+.es-wide-scroll:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.es-wide-scroll > .mech-scroll {
+  overflow: visible;
+  max-width: none;
+}
+.es-wide-scroll > .mech-svg {
+  min-width: var(--figure-width, 600px);
+}
+.es-wide-scroll .mech-timeline {
+  min-width: 720px;
+}
+.es-wide-scroll .mech-time-row,
+.es-wide-scroll .mech-time-axis {
+  grid-template-columns: 90px minmax(0, 1fr);
+  gap: 8px;
+}
+.es-wide-scroll .mech-time-axis small {
+  font-size: 12px;
+}
+.es-wide-scroll .mech-time-row > strong,
+.es-wide-scroll .mech-time-row span {
+  font-size: 13px;
+}
+@media (max-width: 620px) {
+  .es-record-table {
+    display: none;
+  }
+  .es-record-list {
+    display: grid;
+    gap: 12px;
+  }
+  .es-record {
+    min-width: 0;
+    margin: 0;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+  }
+  .es-record > div {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    gap: 12px;
+    align-items: start;
+    padding: 7px 0;
+  }
+  .es-record > div + div {
+    border-top: 1px solid var(--border);
+  }
+  .es-record dt,
+  .es-record dd {
+    min-width: 0;
+    margin: 0;
+    overflow-wrap: anywhere;
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  .es-record dt {
+    color: var(--muted);
+  }
+  .es-record dd {
+    color: var(--ink);
+  }
+  .es-record-identity dt,
+  .es-record-identity dd {
+    font-weight: 650;
+    color: var(--primary);
+  }
+}

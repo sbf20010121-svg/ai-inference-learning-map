@@ -60,11 +60,11 @@ export const linearPhases = [
   {
     title: "② 单步递推的 GPU 状态",
     owner: "fla/ops/gated_delta_rule/fused_recurrent.py",
-    input: "每头 S[K,V]、k[K]、v[V]、q[K]、g、β",
+    input: "每头 S[K,V]；k/q为[K,1]列向量，v为[V,1]列向量；标量g、β",
     action: "先门控衰减，再预测旧值，计算 delta 后更新 S、算输出",
-    output: "新的 S[K,V] 和 o[V]",
+    output: "新的 S[K,V] 和列输出o[V,1]",
     why: "这是 Delta 和 Gate 的实质计算。真实 Kernel 用 BK/BV 分块，可能使用 V-first 状态布局。",
-    code: `for t in range(T):\n    S *= exp(g[t])              # γ 衰减\n    old_value = k[t] @ S        # [V]\n    delta = beta[t] * (v[t] - old_value)\n    S += outer(k[t], delta)     # [K,V]\n    out[t] = q[t] @ S           # [V]`,
+    code: `# 教学列向量：k/q[t]为[K,1]，v[t]为[V,1]\nfor t in range(T):\n    M = exp(g[t]) * S           # [K,V]，先衰减旧状态\n    old_value = M.T @ k[t]      # [V,1]\n    delta = v[t] - old_value    # [V,1]，此处尚未乘β\n    S = M + beta[t] * (k[t] @ delta.T)  # [K,V]\n    out[t] = S.T @ q[t]         # [V,1]`,
   },
   {
     title: "③ Prefill 的 Chunk 组织",

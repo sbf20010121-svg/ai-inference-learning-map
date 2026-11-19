@@ -173,7 +173,7 @@ const assert = require("node:assert/strict");
             "reduce",
           ].includes(ch.id)
         ) {
-          await page.waitForFunction(() => !document.querySelector("#toast")?.classList.contains("show"));
+          await page.waitForFunction(() => { const toast = document.querySelector("#toast"); return !toast || (!toast.classList.contains("show") && getComputedStyle(toast).opacity === "0"); });
           await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
           await page.screenshot({
             path: `test-results/v5-${t.id}-${ch.id}.png`,
@@ -309,7 +309,7 @@ const assert = require("node:assert/strict");
       old.note + "；新版追加",
     );
     await page.locator("#themeToggle").click();
-    await page.waitForFunction(() => !document.querySelector("#toast")?.classList.contains("show"));
+    await page.waitForFunction(() => { const toast = document.querySelector("#toast"); return !toast || (!toast.classList.contains("show") && getComputedStyle(toast).opacity === "0"); });
     await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
     await page.screenshot({
       path: `test-results/v5-${width}-dark.png`,

@@ -21,6 +21,11 @@ const fs = require("node:fs");
         await page.waitForFunction(title => document.querySelector("#spineStageHeading")?.textContent === title, stage.title);
         assert.equal(await page.locator("#spineStageHeading").innerText(), stage.title);
         await checkWidth(stage.id);
+        const labels = page.locator(".spine-map-svg .node-sub");
+        if (await labels.count()) {
+          const renderedSize = await labels.first().evaluate(el => parseFloat(getComputedStyle(el).fontSize) * Math.abs(el.getScreenCTM().a));
+          assert.ok(renderedSize >= 12, `${width}/${stage.id}: diagram labels must remain readable`);
+        }
         report.stages++;
       }
       if (width === 1365) for (const c of allCourses) {
@@ -106,6 +111,18 @@ const fs = require("node:fs");
         const expected = chaptersFor(course).find(ch => ch.id === chapter);
         await page.waitForFunction(([id, figure]) => document.querySelector('[data-mech-chapter][aria-current="step"]')?.dataset.mechChapter === id && document.querySelector(".mechanism-lab")?.dataset.mechanism === figure, [chapter, expected.figure]);
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, `${width}/${route}: screenshot route overflow`);
+        if (width === 360) {
+          const records = page.locator(".es-record-list");
+          if (await records.count()) {
+            assert.ok(await records.isVisible(), `${route}: mobile records must be displayed`);
+            const fieldsFit = await records.locator("dd").evaluateAll(fields => fields.length > 0 && fields.every(el => { const b = el.getBoundingClientRect(); return b.width > 0 && b.left >= 0 && b.right <= innerWidth + 1; }));
+            assert.ok(fieldsFit, `${route}: every mobile record value must be horizontally visible`);
+          }
+          if (route === "serving-slo/metrics") {
+            const renderedSize = await page.locator(".es-wide-scroll svg text").first().evaluate(el => parseFloat(getComputedStyle(el).fontSize) * Math.abs(el.getScreenCTM().a));
+            assert.ok(renderedSize >= 12, "mobile SLO timestamps must retain readable text");
+          }
+        }
         await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
         await page.screenshot({ path: `test-results/v6-lesson-${course}-${chapter}-${width}.png`, fullPage: true });
       }

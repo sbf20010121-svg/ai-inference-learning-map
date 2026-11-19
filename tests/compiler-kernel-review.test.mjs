@@ -66,8 +66,16 @@ test("paged attention derivations match an independent scalar weighted sum", () 
     const expected = K.slice(0,L).reduce((s,k,i)=>s+Math.exp(k)*V[i],0)/denom;
     for (const layout of [false,true]) near(pagedRead(L,layout).out, expected);
   }
-  const tail = renderMechanism("foundation/paged-attention-kernel/tail", {...defaultLab(),case:1});
+  const tail = renderMechanism("foundation/paged-attention-kernel/tail", defaultLab());
+  assert.match(tail, /aria-pressed="true">长度3<\/button>/);
+  assert.match(tail, /<dt>有效长度<\/dt><dd>3<\/dd>/);
+  assert.match(tail, /<dt>分页结果<\/dt><dd>1\.5148<\/dd>/);
   assert.match(tail,/Mask排除，概率为0/);
+  const full = renderMechanism("foundation/paged-attention-kernel/tail", changeLab(defaultLab(),"case","1"));
+  assert.match(full, /aria-pressed="true">长度4<\/button>/);
+  assert.match(full, /<dt>有效长度<\/dt><dd>4<\/dd>/);
+  assert.match(full, /<dt>分页结果<\/dt><dd>2\.4711<\/dd>/);
+  assert.doesNotMatch(full, /Mask排除，概率为0/);
 });
 
 test("chapter formulas and assessments follow the active mechanism instead of a course-wide fallback", () => {

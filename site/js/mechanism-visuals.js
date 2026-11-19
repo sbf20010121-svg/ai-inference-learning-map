@@ -306,7 +306,7 @@ function linear(fig, s) {
   else
     body = `${v.t ? blocks([...v.t.k, ...v.t.v], "输入：前2项k，后2项v") : ""}<div class="mech-matrix-row">${matrixView(v.old, "① 旧S")}${matrixView(v.decayed, "② γS")}${matrixView(v.write, "④ 写入量")}${matrixView(v.S, "⑤ 新S")}</div>${metrics(
       [
-        ["③ 旧预测 kᵀ(γS)", vec(v.pred)],
+        ["③ 列预测 Mᵀk，M=γS旧", vec(v.pred)],
         [
           fig === "delta-update" && s.rule === "additive"
             ? "③ 对照：不减预测，直接用v"
@@ -360,7 +360,7 @@ function linear(fig, s) {
     ) +
     figure(
       body,
-      "同色矩阵格保持相同Key/Value坐标；数值是2×2教学状态，不是历史Token列表。",
+      "S为Key行×Value列；k、v、δ按列向量定义，图中向量分量横排显示。同色格保持相同坐标；2×2教学状态不是历史Token列表。",
     )
   );
 }

@@ -160,7 +160,7 @@ export const kernelCourses = [
         "tail",
         "不能读入无效尾槽",
         "实际长度3时，P1第二槽里旧数据会不会影响结果？",
-        "只有逻辑位置0..2有效，物理槽中即使残留数值也不能参与。图切换尾长并独立计算直接参考，检查Mask真正作用于分数域。",
+        "当长度为3时，只有逻辑位置0..2有效，物理槽中即使残留数值也不能参与。切换到长度4可对照尾槽重新参与后的结果；两种长度都独立计算直接参考，检查Mask真正作用于分数域。",
         { quiz: true, formula: true, evidence: {
           formula: math("<mrow><msub><mi>s</mi><mi>t</mi></msub><mo>=</mo><mo>{</mo><mtable><mtr><mtd><mi>q</mi><msub><mi>K</mi><mi>t</mi></msub></mtd><mtd><mn>0</mn><mo>≤</mo><mi>t</mi><mo>&lt;</mo><mi>L</mi></mtd></mtr><mtr><mtd><mo>−</mo><mi>∞</mi></mtd><mtd><mtext>无效位置</mtext></mtd></mtr></mtable></mrow>"),
           derive: ["L是实际上下文长度；物理块容量可以大于L。", "L=3只允许t=0、1、2参与，尾槽t=3的分数按Mask排除，其概率为0。", "对有效Key=[1,0,2]、Value=[2,4,1]归一化，输出约1.514820；不能仍用长度4的分母。"],

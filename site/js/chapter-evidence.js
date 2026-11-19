@@ -35,7 +35,7 @@ export const chapterEvidence = {
   },
   "linear-state/correction": { code: linearPhases[1].code },
   "linear-state/triangle": {
-    code: "L[i,j] = beta[i] * dot(k[i], k[j]) if j < i else 0\nD = forward_substitution(I + L, beta[:,None] * V)\nS_out = S0 + transpose(K) @ D\n# 此骨架限定 S0=0、gamma=1；输出还要按Token前缀读取\n# 正式实现用WY等分块变换，不能把此密集求解当最优Kernel",
+    code: "# 每个k_i/v_i/δ_i均为列向量；按Token将k_i.T/v_i.T堆成K/V的行\n# D[i,:] = beta[i] * delta_i.T，是已乘β的残差行\nL[i,j] = beta[i] * dot(k[i], k[j]) if j < i else 0\nD = forward_substitution(I + L, beta[:,None] * V)\nS_out = S0 + transpose(K) @ D\n# 此骨架限定 S0=0、gamma=1；输出还要按Token前缀读取\n# 正式实现用WY等分块变换，不能把此密集求解当最优Kernel",
   },
   "linear-state/kernel": {
     code: linearPhases[2].code + "\n\n" + linearPhases[3].code,

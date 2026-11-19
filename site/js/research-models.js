@@ -1,7 +1,9 @@
 /**
  * 可逐项核对的教学数学模型（没有 GPU 依赖）。
  * 递推顺序与 FLA gated_delta_rule/fused_recurrent.py 的标量门控情形一致：
- *   M=gamma*Sprev; residual=v-k^T M; S=M+beta*k*residual^T; o=q^T S.
+ *   S为Key×Value，k/v/q为列向量；M=gamma*Sprev；
+ *   residual=v-M^T*k；S=M+beta*k*residual^T；o=S^T*q。
+ * 实现用一维数组保存向量分量：rowvec(k,M)与M^T*k的分量相同，未给数组增加二维轴。
  * 本模块仅一头 d_k=d_v=2 的小例子，不冒充 GDN 全层实现。
  */
 export const TOKENS = Object.freeze([
