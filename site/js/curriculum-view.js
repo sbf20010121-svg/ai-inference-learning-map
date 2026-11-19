@@ -8,6 +8,7 @@ import {
 } from "./course-registry.js";
 import { chaptersFor } from "./mechanism-curriculum.js";
 import { coverageHTML } from "./coverage-ui.js";
+import { spineStageForCourse } from "./system-spine.js";
 const e = (s = "") =>
   String(s).replace(
     /[&<>"']/g,
@@ -98,7 +99,7 @@ export function renderCurriculum(
     units = courseUnits.filter((u) => u.module === activeDomain),
     count = units.reduce((n, u) => n + u.courses.length, 0),
     m = depthModules.find((m) => m.id === activeDomain);
-  root.innerHTML = `<section class="curriculum-home"><header><p class="eyebrow accent-text">课程体系 · 领域 / 单元 / 独立课 / 课内问题</p><h1>把机制放回完整的系统</h1><p>模型 → 推理系统 → 编译与Runtime → GPU执行。系统基础按需接入，GPU微架构作为并行关联支线；视觉、机器人和世界模型在模型领域内展开。</p><div class="curriculum-actions"><button type="button" data-dtopic="${e(allCourseById.has(resumeId) ? resumeId : "pd-disagg")}">继续上次课程 →</button><button type="button" data-dmap>查看知识关系图</button></div></header><nav class="curriculum-domains" aria-label="六大学习领域">${depthModules.map((m) => `<button type="button" data-course-home="${m.id}" aria-current="${m.id === activeDomain}">${e(m.name)}</button>`).join("")}</nav><section class="curriculum-domain-heading"><div><h2>${e(m.name)}</h2><p>${units.length}个单元 · ${count}门独立课。课内问题数不代表领域完整度；导论的掌握不会自动标记整个单元。</p></div><label>查找课程<input id="curriculumSearch" type="search" placeholder="搜索全部领域的主题与机制" aria-label="查找全部课程" /></label></section><div id="curriculumUnits">${body()}</div><aside class="curriculum-scope"><strong>本版范围</strong><p>覆盖为理解AI推理执行所需的主流基础与关键专项。课程解释、数学核对、固定版本源码审计、真实实验是不同证据层级；每课保留具体边界。旧25门课的ID与私人记录保留，新课独立记录。</p><p>${allCourses.length}门课程已放入${courseUnits.length}个单元。传统语言前端、完整训练算法、机器人机械设计、3D感知专项等按需扩展。</p></aside>${coverageHTML()}</section>`;
+  root.innerHTML = `<section class="curriculum-home"><header><p class="eyebrow accent-text">课程体系 · 领域 / 单元 / 独立课 / 课内问题</p><h1>把机制放回完整的系统</h1><p>模型 → 推理系统 → 编译与Runtime → GPU执行。系统基础按需接入，GPU微架构作为并行关联支线；视觉、机器人和世界模型在模型领域内展开。</p><div class="curriculum-actions"><button type="button" data-spine-stage="request">先看完整系统主线 →</button><button type="button" data-dtopic="${e(allCourseById.has(resumeId) ? resumeId : "pd-disagg")}">继续上次课程</button><button type="button" data-dmap>查看知识关系图</button></div></header><nav class="curriculum-domains" aria-label="六大学习领域">${depthModules.map((m) => `<button type="button" data-course-home="${m.id}" aria-current="${m.id === activeDomain}">${e(m.name)}</button>`).join("")}</nav><section class="curriculum-domain-heading"><div><h2>${e(m.name)}</h2><p>${units.length}个单元 · ${count}门独立课。课内问题数不代表领域完整度；导论的掌握不会自动标记整个单元。</p></div><label>查找课程<input id="curriculumSearch" type="search" placeholder="搜索全部领域的主题与机制" aria-label="查找全部课程" /></label></section><div id="curriculumUnits">${body()}</div><aside class="curriculum-scope"><strong>本版范围</strong><p>覆盖为理解AI推理执行所需的主流基础与关键专项。课程解释、数学核对、固定版本源码审计、真实实验是不同证据层级；每课保留具体边界。旧25门课的ID与私人记录保留，新课独立记录。</p><p>${allCourses.length}门课程已放入${courseUnits.length}个单元。传统语言前端、完整训练算法、机器人机械设计、3D感知专项等按需扩展。</p></aside>${coverageHTML()}</section>`;
   root.querySelector("#curriculumSearch").addEventListener("input", (event) => {
     query = event.target.value.trim();
     root.querySelector("#curriculumUnits").innerHTML = body();
