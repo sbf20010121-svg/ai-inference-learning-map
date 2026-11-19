@@ -3,7 +3,7 @@ import { chaptersFor } from "./mechanism-curriculum.js";
 
 export const chapterArcs = {
   "vllm-scheduler/requests": {
-    "opening": "三条请求同时等着计算，但它们等的工作不同：A要继续生成，B/C还要处理输入。先读轮前状态，再决定这轮算哪些位置。",
+    "opening": "A/B/C是三条请求：A正继续生成，B/C还要处理输入。Scheduler（调度器）每轮决定它们各算多少位置；把同一请求的输入分几轮计算，就叫Chunked Prefill（分块预填充）。",
     "terms": [
       [
         "Prefill / Decode",
